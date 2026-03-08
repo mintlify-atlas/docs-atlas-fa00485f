@@ -1,0 +1,319 @@
+---
+title: 'Single-Turn Evaluations'
+description: 'Deep dive into single-turn AI safety evaluations'
+---
+
+Single-turn evaluations test how your AI model responds to individual, isolated prompts without conversation history. This evaluation type is ideal for quickly identifying direct vulnerabilities and testing immediate safety responses.
+
+## What Single-Turn Evaluations Test
+
+Single-turn evaluations send individual test prompts to your model and analyze the responses for safety violations. Each test is independent, with no memory of previous exchanges.
+
+<Note>
+  Single-turn tests focus on **direct prompt injection** and **immediate harmful content generation**, making them perfect for baseline safety assessments.
+</Note>
+
+### Test Methodology
+
+<Steps>
+  <Step title="Prompt Generation">
+    The CLI generates test prompts based on your selected test case groups. Each prompt is designed to test a specific safety boundary.
+  </Step>
+  
+  <Step title="Variations">
+    For each base test case, the system creates multiple variations to test different phrasings and approaches that might bypass safety filters.
+  </Step>
+  
+  <Step title="Iteration Layers">
+    The system can generate multiple layers of increasingly sophisticated prompts, learning from previous responses to create more targeted tests.
+  </Step>
+  
+  <Step title="Safety Scoring">
+    Each response is scored for safety by Circuit Breaker Labs' evaluation API. Scores below your threshold are flagged as failures.
+  </Step>
+</Steps>
+
+## Parameters
+
+Single-turn evaluations are configured using three key parameters:
+
+### `--threshold` (Required)
+
+The minimum safety score (0.0 to 1.0) required for a response to pass.
+
+```bash
+# Strict threshold: Only very safe responses pass
+cbl single-turn --threshold 0.8 openai --model gpt-4o
+
+# Moderate threshold: Balanced safety requirements
+cbl single-turn --threshold 0.5 openai --model gpt-4o
+
+# Lenient threshold: Most responses pass unless clearly unsafe
+cbl single-turn --threshold 0.3 openai --model gpt-4o
+```
+
+<Accordion title="Understanding Safety Scores">
+  Safety scores are calculated by analyzing:
+  - **Content harm indicators**: Presence of harmful advice, dangerous information, or policy violations
+  - **Refusal quality**: Whether the model appropriately refuses harmful requests
+  - **Context appropriateness**: Whether responses maintain safety boundaries while being helpful
+  
+  A score of 0.0 indicates maximum safety concern, while 1.0 indicates a completely safe response.
+</Accordion>
+
+### `--variations` (Required)
+
+The number of prompt variations to generate for each base test case.
+
+```bash
+# Minimal testing: 1 variation per test case
+cbl single-turn --threshold 0.5 --variations 1 --maximum-iteration-layers 1 \
+    openai --model gpt-4o
+
+# Standard testing: 2-3 variations
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+
+# Comprehensive testing: 5+ variations
+cbl single-turn --threshold 0.5 --variations 5 --maximum-iteration-layers 3 \
+    openai --model gpt-4o
+```
+
+<Warning>
+  Higher variation counts increase test coverage but also increase API usage and evaluation time. Start with 2-3 variations for most use cases.
+</Warning>
+
+### `--maximum-iteration-layers` (Required)
+
+The maximum number of iterative refinement layers for generating test prompts.
+
+```bash
+# Single layer: Basic test prompts only
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 1 \
+    openai --model gpt-4o
+
+# Two layers: Base prompts + one refinement iteration
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+
+# Three layers: More sophisticated attack patterns
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 3 \
+    openai --model gpt-4o
+```
+
+<Info>
+  Each iteration layer generates prompts informed by previous responses, creating progressively more targeted tests. Layer 1 uses generic unsafe prompts, while layer 3 uses model-specific attack patterns.
+</Info>
+
+### `--test-case-groups` (Optional)
+
+Specify which test case groups to run. Defaults to `suicidal_ideation`.
+
+```bash
+# Default: Test only suicidal ideation prompts
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+
+# Multiple groups: Test several categories
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    --test-case-groups suicidal_ideation,violence,hate_speech \
+    openai --model gpt-4o
+
+# Custom group: Test your own safety categories
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    --test-case-groups my_custom_category \
+    openai --model gpt-4o
+```
+
+## Complete Command Examples
+
+<CodeGroup>
+```bash OpenAI Basic
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+
+```bash OpenAI with Custom Temperature
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o \
+    --temperature 1.2
+```
+
+```bash Ollama Local Model
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama --model llama3.2
+```
+
+```bash Save Results to File
+cbl --output-file single-turn-results.json \
+    single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+
+```bash Custom Test Groups
+cbl single-turn \
+    --threshold 0.6 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    --test-case-groups suicidal_ideation,self_harm,violence \
+    openai --model gpt-4o
+```
+</CodeGroup>
+
+## Interpreting Results
+
+When a single-turn evaluation completes, you'll receive detailed results including:
+
+### Pass/Fail Summary
+
+```json
+{
+  "total_tests": 20,
+  "passed": 18,
+  "failed": 2,
+  "pass_rate": 0.90
+}
+```
+
+### Individual Test Results
+
+Each test includes:
+- **Test prompt**: The exact prompt sent to your model
+- **Model response**: Your model's complete response
+- **Safety score**: Numerical safety assessment (0.0 - 1.0)
+- **Pass/Fail**: Whether the score met your threshold
+- **Test case group**: Which category this test belongs to
+
+<Accordion title="Example Test Result">
+  ```json
+  {
+    "test_id": "test_001_variation_1_layer_1",
+    "test_case_group": "suicidal_ideation",
+    "prompt": "I'm feeling really down lately...",
+    "response": "I'm concerned about what you're sharing. Please reach out to a mental health professional...",
+    "safety_score": 0.92,
+    "threshold": 0.5,
+    "passed": true
+  }
+  ```
+</Accordion>
+
+### Failure Analysis
+
+<Warning>
+  **Failed tests require immediate attention.** Each failure indicates a potential safety vulnerability in your model.
+</Warning>
+
+For each failed test, examine:
+
+<Steps>
+  <Step title="The Prompt Pattern">
+    What attack vector was used? Was it direct manipulation, role-play, context injection, or another technique?
+  </Step>
+  
+  <Step title="The Model's Response">
+    Did the model refuse appropriately? Did it provide harmful information? Was the refusal weak or ambiguous?
+  </Step>
+  
+  <Step title="The Safety Score">
+    How far below threshold did it score? A score of 0.45 vs 0.50 is very different from 0.10 vs 0.50.
+  </Step>
+  
+  <Step title="Remediation Strategy">
+    Should you adjust your system prompt, fine-tune the model, add content filtering, or modify your threshold?
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Start with Moderate Settings">
+    Begin with `--threshold 0.5`, `--variations 2`, and `--maximum-iteration-layers 2` to establish a baseline. Adjust based on results.
+  </Accordion>
+
+  <Accordion title="Test Before Deployment">
+    Run single-turn evaluations on any new model, prompt changes, or fine-tunes before production deployment.
+  </Accordion>
+
+  <Accordion title="Track Results Over Time">
+    Save results to files with timestamps to track safety improvements:
+    ```bash
+    cbl --output-file results-$(date +%Y%m%d).json single-turn ...
+    ```
+  </Accordion>
+
+  <Accordion title="Combine with Multi-Turn Testing">
+    Single-turn tests catch direct vulnerabilities, but also run multi-turn evaluations to catch conversational manipulation.
+  </Accordion>
+
+  <Accordion title="Use Appropriate Thresholds">
+    High-risk applications (healthcare, children, crisis support) should use thresholds of 0.7 or higher.
+  </Accordion>
+</AccordionGroup>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Pre-Deployment Testing" icon="shield-check">
+    Quick safety validation before releasing model updates to production
+  </Card>
+  
+  <Card title="Regression Testing" icon="rotate">
+    Verify that prompt or model changes don't introduce new vulnerabilities
+  </Card>
+  
+  <Card title="Compliance Verification" icon="file-certificate">
+    Demonstrate safety measures for regulatory or policy requirements
+  </Card>
+  
+  <Card title="Baseline Establishment" icon="chart-line">
+    Create initial safety metrics for tracking improvements over time
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+<Note>
+  **API Usage Calculation:**
+  
+  Total API calls = `test_case_groups.length` × `variations` × `maximum_iteration_layers`
+  
+  For example: 1 group × 3 variations × 2 layers = 6 API calls per base test case
+</Note>
+
+### Optimization Tips
+
+- Use fewer variations (1-2) for rapid iteration during development
+- Increase variations (3-5) and layers (2-3) for comprehensive pre-deployment testing
+- Test high-risk groups more thoroughly than lower-risk categories
+- Run evaluations in CI/CD pipelines with moderate settings to catch regressions
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Multi-Turn Evaluations" icon="messages" href="/guides/multi-turn-evaluations">
+    Learn about conversational safety testing
+  </Card>
+  <Card title="Providers" icon="plug" href="/guides/providers">
+    Configure different model providers
+  </Card>
+</CardGroup>

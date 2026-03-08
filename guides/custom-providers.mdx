@@ -1,0 +1,658 @@
+---
+title: 'Custom Providers'
+description: 'Create custom model providers using Rhai scripting'
+---
+
+Custom providers allow you to integrate any AI model API with the Circuit Breaker Labs CLI using [Rhai](https://rhai.rs/) scripting. This enables safety testing for proprietary models, internal deployments, or any non-standard API.
+
+## What is Rhai?
+
+Rhai is a simple, embedded scripting language designed for Rust applications. It has a JavaScript-like syntax and is used by the CLI to translate between the standard Circuit Breaker Labs message format and your custom API's format.
+
+<Note>
+  You don't need to be a Rhai expert to create custom providers. The examples below cover all common use cases.
+</Note>
+
+### Why Rhai for Custom Providers?
+
+<CardGroup cols={2}>
+  <Card title="Sandboxed Execution" icon="shield">
+    Scripts run in a secure sandbox with no file system or network access
+  </Card>
+  <Card title="Simple Syntax" icon="code">
+    JavaScript-like syntax that's easy to learn and read
+  </Card>
+  <Card title="Type Safety" icon="check">
+    Strong typing prevents runtime errors
+  </Card>
+  <Card title="Fast Performance" icon="bolt">
+    Compiled to bytecode for efficient execution
+  </Card>
+</CardGroup>
+
+## How Custom Providers Work
+
+Custom providers act as translators between the CLI and your API:
+
+<Steps>
+  <Step title="CLI Prepares Messages">
+    The CLI generates conversation messages in a standard format:
+    ```json
+    [
+      {"role": "user", "content": "Hello!"},
+      {"role": "assistant", "content": "Hi there!"},
+      {"role": "user", "content": "How are you?"}
+    ]
+    ```
+  </Step>
+  
+  <Step title="build_request() Transforms">
+    Your Rhai script's `build_request()` function converts these messages into your API's request format.
+  </Step>
+  
+  <Step title="CLI Posts Request">
+    The CLI sends the transformed request to your specified URL endpoint.
+  </Step>
+  
+  <Step title="parse_response() Extracts">
+    Your script's `parse_response()` function extracts the assistant's message from the API response.
+  </Step>
+  
+  <Step title="Evaluation Continues">
+    The CLI uses the extracted message for safety evaluation and continues the conversation if needed.
+  </Step>
+</Steps>
+
+## Script Structure
+
+Every custom provider script must implement two functions:
+
+```rhai
+// Build the request body that will be POST'd to the endpoint
+// messages: array of #{role: String, content: String}
+// returns: a map that will be serialized to JSON
+fn build_request(messages) {
+    // Transform messages into your API's format
+    #{
+        "model": "your-model-name",
+        "messages": messages
+    }
+}
+
+// Parse the response body and extract the assistant's message
+// body: the full deserialized JSON response as a Rhai dynamic
+// returns: String containing the assistant's message content
+fn parse_response(body) {
+    // Extract the assistant's message from your API's response
+    body["choices"][0]["message"]["content"].to_string()
+}
+```
+
+<Warning>
+  Both functions are **required**. The CLI will fail if either is missing or has the wrong signature.
+</Warning>
+
+## Complete Examples from Source
+
+The CLI repository includes working examples for common API formats:
+
+### OpenAI Chat Completions API
+
+<Accordion title="examples/providers/openai_completions.rhai">
+  ```rhai
+  // Example OpenAI-compatible provider script
+  // This script implements the OpenAI chat completions API spec
+  
+  // Build the request body that will be POST'd to the endpoint
+  // messages: array of #{role: String, content: String}
+  // returns: a map that will be serialized to JSON
+  fn build_request(messages) {
+      #{
+          "model": "gpt-4o",
+          "messages": messages
+      }
+  }
+  
+  // Parse the response body and extract the assistant's message
+  // body: the full deserialized JSON response as a Rhai dynamic
+  // returns: String containing the assistant's message content
+  fn parse_response(body) {
+      body["choices"][0]["message"]["content"].to_string()
+  }
+  ```
+  
+  **Usage:**
+  ```bash
+  cbl single-turn \
+      --threshold 0.5 \
+      --variations 2 \
+      --maximum-iteration-layers 2 \
+      custom \
+      --url https://api.openai.com/v1/chat/completions \
+      --script ./examples/providers/openai_completions.rhai
+  ```
+</Accordion>
+
+### OpenAI Responses API
+
+<Accordion title="examples/providers/openai_responses.rhai">
+  ```rhai
+  // Example OpenAI-compatible provider script
+  // This script implements the OpenAI responses API spec
+  
+  // Build the request body that will be POST'd to the endpoint
+  // messages: array of #{role: String, content: String}
+  // returns: a map that will be serialized to JSON
+  fn build_request(messages) {
+      #{
+          "model": "gpt-4o",
+          "input": messages
+      }
+  }
+  
+  // Parse the response body and extract the assistant's message
+  // body: the full deserialized JSON response as a Rhai dynamic
+  // returns: String containing the assistant's message content
+  fn parse_response(body) {
+      body["output"][0]["content"][0]["text"].to_string()
+  }
+  ```
+</Accordion>
+
+### Ollama Chat API
+
+<Accordion title="examples/providers/ollama_chat.rhai">
+  ```rhai
+  // Example Ollama provider script
+  // This script implements the Ollama chat API spec
+  
+  // Build the request body that will be POST'd to the endpoint
+  // messages: array of #{role: String, content: String}
+  // returns: a map that will be serialized to JSON
+  fn build_request(messages) {
+      #{
+          "model": "llama3.2",
+          "messages": messages,
+          "stream": false
+      }
+  }
+  
+  // Parse the response body and extract the assistant's message
+  // body: the full deserialized JSON response as a Rhai dynamic
+  // returns: String containing the assistant's message content
+  fn parse_response(body) {
+      body["message"]["content"].to_string()
+  }
+  ```
+  
+  **Usage:**
+  ```bash
+  cbl single-turn \
+      --threshold 0.5 \
+      --variations 2 \
+      --maximum-iteration-layers 2 \
+      custom \
+      --url http://localhost:11434/api/chat \
+      --script ./examples/providers/ollama_chat.rhai
+  ```
+</Accordion>
+
+### Ollama Completions API
+
+<Accordion title="examples/providers/ollama_completions.rhai">
+  ```rhai
+  // Example Ollama provider script
+  // This script implements the Ollama completions API spec
+  
+  // Build the request body that will be POST'd to the endpoint
+  // messages: array of #{role: String, content: String}
+  // returns: a map that will be serialized to JSON
+  fn build_request(messages) {
+      #{
+          "model": "llama3.2",
+          "messages": messages,
+      }
+  }
+  
+  // Parse the response body and extract the assistant's message
+  // body: the full deserialized JSON response as a Rhai dynamic
+  // returns: String containing the assistant's message content
+  fn parse_response(body) {
+      body["choices"][0]["message"]["content"].to_string()
+  }
+  ```
+</Accordion>
+
+## Creating Your Own Provider
+
+<Steps>
+  <Step title="Identify Your API Format">
+    Determine what request format your API expects and what response format it returns. Test with curl:
+    
+    ```bash
+    curl -X POST https://your-api.com/completions \
+      -H "Authorization: Bearer YOUR_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "your-model",
+        "messages": [{"role": "user", "content": "Hello"}]
+      }'
+    ```
+  </Step>
+  
+  <Step title="Create Rhai Script">
+    Create a `.rhai` file with `build_request()` and `parse_response()` functions:
+    
+    ```rhai
+    fn build_request(messages) {
+        // Your request transformation here
+        #{
+            "your_field": messages
+        }
+    }
+    
+    fn parse_response(body) {
+        // Your response parsing here
+        body["your_response_field"].to_string()
+    }
+    ```
+  </Step>
+  
+  <Step title="Test the Script">
+    Run a simple evaluation to verify the script works:
+    
+    ```bash
+    cbl single-turn \
+        --threshold 0.5 \
+        --variations 1 \
+        --maximum-iteration-layers 1 \
+        custom \
+        --url https://your-api.com/endpoint \
+        --script ./your-provider.rhai
+    ```
+  </Step>
+  
+  <Step title="Iterate and Refine">
+    Check error messages for issues with request/response parsing and adjust your script accordingly.
+  </Step>
+</Steps>
+
+## Advanced Examples
+
+### Adding Custom Parameters
+
+```rhai
+fn build_request(messages) {
+    #{
+        "model": "your-model",
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 1000,
+        "top_p": 0.9,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0
+    }
+}
+
+fn parse_response(body) {
+    body["choices"][0]["message"]["content"].to_string()
+}
+```
+
+### Handling Different Message Formats
+
+If your API expects a different message structure:
+
+```rhai
+fn build_request(messages) {
+    // Transform standard format into custom format
+    let transformed = [];
+    
+    for msg in messages {
+        transformed.push(#{
+            "speaker": msg.role,  // "role" -> "speaker"
+            "text": msg.content    // "content" -> "text"
+        });
+    }
+    
+    #{
+        "model": "your-model",
+        "conversation": transformed
+    }
+}
+
+fn parse_response(body) {
+    body["response"]["text"].to_string()
+}
+```
+
+### Concatenating Messages for Completion APIs
+
+Some APIs expect a single prompt instead of structured messages:
+
+```rhai
+fn build_request(messages) {
+    // Convert message array to single prompt string
+    let prompt = "";
+    
+    for msg in messages {
+        if msg.role == "user" {
+            prompt += "User: " + msg.content + "\n";
+        } else if msg.role == "assistant" {
+            prompt += "Assistant: " + msg.content + "\n";
+        } else if msg.role == "system" {
+            prompt += "System: " + msg.content + "\n";
+        }
+    }
+    
+    prompt += "Assistant: ";
+    
+    #{
+        "model": "your-model",
+        "prompt": prompt
+    }
+}
+
+fn parse_response(body) {
+    body["completion"].to_string()
+}
+```
+
+### Handling Nested Response Structures
+
+```rhai
+fn parse_response(body) {
+    // Navigate deeply nested response structure
+    let result = body["data"]["results"][0]["output"]["message"];
+    
+    // Handle optional fields with default values
+    if result == () {
+        return "[No response generated]";
+    }
+    
+    result.to_string()
+}
+```
+
+### Adding Debug Logging
+
+```rhai
+fn build_request(messages) {
+    print("Building request for " + messages.len() + " messages");
+    
+    let request = #{
+        "model": "your-model",
+        "messages": messages
+    };
+    
+    print("Request built successfully");
+    request
+}
+
+fn parse_response(body) {
+    print("Parsing response: " + body);
+    
+    let content = body["choices"][0]["message"]["content"].to_string();
+    
+    print("Extracted content: " + content);
+    content
+}
+```
+
+<Info>
+  Debug output appears in the CLI logs. Use this to troubleshoot request/response issues.
+</Info>
+
+## Rhai Quick Reference
+
+### Data Types
+
+```rhai
+// String
+let name = "value";
+
+// Integer
+let count = 42;
+
+// Float
+let temperature = 0.7;
+
+// Boolean
+let enabled = true;
+
+// Array
+let items = [1, 2, 3];
+
+// Map (object)
+let obj = #{
+    "key": "value",
+    "number": 42
+};
+```
+
+### Control Flow
+
+```rhai
+// If statement
+if condition {
+    // code
+} else {
+    // code
+}
+
+// For loop
+for item in array {
+    // code
+}
+
+// While loop
+while condition {
+    // code
+}
+```
+
+### Common Operations
+
+```rhai
+// String concatenation
+let full = "Hello " + "World";
+
+// Array operations
+array.push(item);
+let length = array.len();
+
+// Map access
+let value = map["key"];
+map["new_key"] = "new_value";
+
+// Type conversion
+let str = value.to_string();
+```
+
+### Functions
+
+```rhai
+// Function definition
+fn my_function(param1, param2) {
+    // code
+    return result;
+}
+
+// Function call
+let result = my_function("arg1", "arg2");
+```
+
+## Authentication and Headers
+
+Authentication is typically handled via HTTP headers passed from environment variables:
+
+```bash
+# Set your API key
+export CUSTOM_API_KEY="your-api-key"
+
+# Run with custom provider
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://your-api.com/completions \
+    --script ./provider.rhai
+```
+
+<Note>
+  The CLI automatically includes standard headers. Your API key should be configured according to your API's authentication requirements (Bearer token, API key header, etc.).
+</Note>
+
+If you need custom headers, they can be set at the HTTP client level. Contact the Circuit Breaker Labs team if you need advanced header customization.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: 'build_request' function not found">
+    Your script is missing the `build_request` function. Ensure it's defined:
+    
+    ```rhai
+    fn build_request(messages) {
+        // implementation
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Error: 'parse_response' function not found">
+    Your script is missing the `parse_response` function. Ensure it's defined:
+    
+    ```rhai
+    fn parse_response(body) {
+        // implementation
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Error: Type mismatch or cannot parse response">
+    The response structure doesn't match your parsing logic. Add debug logging:
+    
+    ```rhai
+    fn parse_response(body) {
+        print(body);  // Print full response to see structure
+        // Then adjust parsing logic
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Error: HTTP 400/401 from API">
+    - Verify your API URL is correct
+    - Check authentication headers are set properly
+    - Ensure request format matches what your API expects
+    - Test with curl to confirm API access
+  </Accordion>
+
+  <Accordion title="Empty or Invalid Responses">
+    Your `parse_response` logic might be extracting the wrong field. Log the full response:
+    
+    ```rhai
+    fn parse_response(body) {
+        print("Full response: " + body);
+        // Adjust field access based on output
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing Your Custom Provider
+
+<Steps>
+  <Step title="Test with Single Variation">
+    Start with minimal settings to quickly identify issues:
+    ```bash
+    cbl single-turn \
+        --threshold 0.5 \
+        --variations 1 \
+        --maximum-iteration-layers 1 \
+        custom --url YOUR_URL --script your-provider.rhai
+    ```
+  </Step>
+  
+  <Step title="Verify Request Format">
+    Check logs to ensure requests match your API's expected format. Add `print()` statements in `build_request()` if needed.
+  </Step>
+  
+  <Step title="Verify Response Parsing">
+    Check that assistant messages are being extracted correctly. Add `print()` in `parse_response()` to debug.
+  </Step>
+  
+  <Step title="Scale Up Testing">
+    Once basic tests work, increase complexity:
+    ```bash
+    cbl multi-turn \
+        --threshold 0.5 \
+        --max-turns 8 \
+        --test-types user_persona,semantic_chunks \
+        custom --url YOUR_URL --script your-provider.rhai
+    ```
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Start with Existing Examples">
+    Copy one of the provided examples that most closely matches your API format, then modify incrementally.
+  </Accordion>
+
+  <Accordion title="Add Debug Logging">
+    Use `print()` liberally during development to see request/response structures.
+  </Accordion>
+
+  <Accordion title="Test with curl First">
+    Before writing your Rhai script, confirm you can successfully call your API with curl.
+  </Accordion>
+
+  <Accordion title="Handle Errors Gracefully">
+    Add checks for missing or null fields in responses:
+    ```rhai
+    fn parse_response(body) {
+        let result = body["data"];
+        if result == () {
+            return "[Error: No data in response]";
+        }
+        result.to_string()
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Keep Scripts Simple">
+    Focus on request transformation and response parsing. Complex logic should live in your API, not the script.
+  </Accordion>
+</AccordionGroup>
+
+## Real-World Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Internal Model Deployments" icon="building">
+    Test proprietary models deployed on internal infrastructure
+  </Card>
+  
+  <Card title="Fine-Tuned Models" icon="wand-magic-sparkles">
+    Evaluate custom fine-tunes on non-standard endpoints
+  </Card>
+  
+  <Card title="Research Models" icon="flask">
+    Test experimental models with unique API formats
+  </Card>
+  
+  <Card title="Multi-Model Routing" icon="route">
+    Route requests to different models based on custom logic
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Rhai Language Documentation" icon="book" href="https://rhai.rs/book/">
+    Complete reference for Rhai scripting language
+  </Card>
+  <Card title="Providers Overview" icon="plug" href="/guides/providers">
+    Learn about OpenAI and Ollama providers
+  </Card>
+</CardGroup>

@@ -1,0 +1,370 @@
+---
+title: "Custom Provider"
+description: "Integrate any LLM API using Rhai scripting"
+---
+
+The Custom provider enables you to integrate any LLM API endpoint that isn't already supported by writing a simple [Rhai](https://rhai.rs/) script. This is perfect for proprietary APIs, custom deployments, or non-standard endpoints.
+
+## How It Works
+
+The Custom provider uses a Rhai script to translate between Circuit Breaker Labs' internal message format and your custom API's request/response schema.
+
+<Steps>
+  <Step title="CBL sends messages to your script">
+    Circuit Breaker Labs provides conversation history as an array of messages with `role` and `content` fields.
+  </Step>
+  
+  <Step title="Your script builds the request">
+    The `build_request()` function transforms messages into your API's expected format.
+  </Step>
+  
+  <Step title="CBL posts to your endpoint">
+    The request body is sent as JSON to the URL you specify.
+  </Step>
+  
+  <Step title="Your script parses the response">
+    The `parse_response()` function extracts the assistant's message from the API response.
+  </Step>
+</Steps>
+
+## Configuration Options
+
+<ParamField path="--url" type="string" required>
+  Endpoint URL to POST requests to.
+  
+  **Example**: `https://api.example.com/v1/chat/completions`
+</ParamField>
+
+<ParamField path="--script" type="path" required>
+  Path to the Rhai script file that defines request/response translation.
+  
+  **Example**: `--script ./providers/my_custom_api.rhai`
+</ParamField>
+
+## Writing a Custom Script
+
+Your Rhai script must implement two functions:
+
+### build_request(messages)
+
+Transforms the conversation history into your API's request format.
+
+**Parameters:**
+- `messages` (array): Array of message objects, each with:
+  - `role` (string): Either `"system"`, `"user"`, or `"assistant"`
+  - `content` (string): The message content
+
+**Returns:** A map that will be serialized to JSON and sent to your endpoint.
+
+### parse_response(body)
+
+Extracts the assistant's response from your API's response.
+
+**Parameters:**
+- `body` (dynamic): The full deserialized JSON response from your API
+
+**Returns:** String containing the assistant's message content.
+
+## Example Scripts
+
+### OpenAI-Compatible API
+
+```rhai
+// For any OpenAI-compatible endpoint
+fn build_request(messages) {
+    #{
+        "model": "gpt-4o",
+        "messages": messages
+    }
+}
+
+fn parse_response(body) {
+    body["choices"][0]["message"]["content"].to_string()
+}
+```
+
+### Ollama API
+
+```rhai
+// For Ollama's chat endpoint
+fn build_request(messages) {
+    #{
+        "model": "llama3.2",
+        "messages": messages,
+        "stream": false
+    }
+}
+
+fn parse_response(body) {
+    body["message"]["content"].to_string()
+}
+```
+
+### Custom API with Authentication
+
+```rhai
+// Example with API key in request body
+fn build_request(messages) {
+    #{
+        "apiKey": "your-api-key",
+        "model": "custom-model-v1",
+        "prompt": messages,
+        "maxTokens": 2000
+    }
+}
+
+fn parse_response(body) {
+    body["result"]["text"].to_string()
+}
+```
+
+### Anthropic Claude API
+
+```rhai
+// For Anthropic's Claude API
+fn build_request(messages) {
+    // Separate system message from conversation
+    let system_msg = "";
+    let conversation = [];
+    
+    for msg in messages {
+        if msg.role == "system" {
+            system_msg = msg.content;
+        } else {
+            conversation.push(msg);
+        }
+    }
+    
+    #{
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 4096,
+        "system": system_msg,
+        "messages": conversation
+    }
+}
+
+fn parse_response(body) {
+    body["content"][0]["text"].to_string()
+}
+```
+
+### Google Gemini API
+
+```rhai
+// For Google's Gemini API
+fn build_request(messages) {
+    let contents = [];
+    
+    for msg in messages {
+        if msg.role != "system" {  // Gemini doesn't use system role
+            let role = if msg.role == "assistant" { "model" } else { "user" };
+            contents.push(#{
+                "role": role,
+                "parts": [#{ "text": msg.content }]
+            });
+        }
+    }
+    
+    #{
+        "contents": contents
+    }
+}
+
+fn parse_response(body) {
+    body["candidates"][0]["content"]["parts"][0]["text"].to_string()
+}
+```
+
+## Complete Usage Example
+
+<CodeGroup>
+
+```bash Single-Turn
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://api.example.com/v1/chat \
+    --script ./my_provider.rhai
+```
+
+```bash Multi-Turn
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    custom \
+    --url https://api.example.com/v1/chat \
+    --script ./my_provider.rhai
+```
+
+```bash With Output File
+cbl \
+    --output-file results.json \
+    single-turn \
+    --threshold 0.3 \
+    custom \
+    --url https://api.anthropic.com/v1/messages \
+    --script ./providers/anthropic.rhai
+```
+
+</CodeGroup>
+
+## Rhai Language Basics
+
+Rhai is a simple scripting language with JavaScript-like syntax:
+
+### Creating Objects (Maps)
+
+```rhai
+let obj = #{
+    "key": "value",
+    "number": 42,
+    "nested": #{
+        "inner": "data"
+    }
+};
+```
+
+### Accessing Fields
+
+```rhai
+let value = obj["key"];           // Bracket notation
+let nested = obj["nested"]["inner"];  // Nested access
+```
+
+### Arrays
+
+```rhai
+let arr = [1, 2, 3];
+arr.push(4);
+let first = arr[0];
+```
+
+### Loops
+
+```rhai
+for item in array {
+    print(item);
+}
+```
+
+### String Conversion
+
+```rhai
+let str = value.to_string();  // Convert to string
+```
+
+<Note>
+For complete Rhai documentation, visit [rhai.rs/book](https://rhai.rs/book).
+</Note>
+
+## Example Scripts Repository
+
+Circuit Breaker Labs provides example scripts in the repository:
+
+```bash
+ls examples/providers/
+```
+
+Available examples:
+- `openai_completions.rhai` - OpenAI chat completions API
+- `ollama_chat.rhai` - Ollama chat API
+- `openai_responses.rhai` - OpenAI with response formatting
+- `ollama_completions.rhai` - Ollama completions endpoint
+
+## Debugging Your Script
+
+Rhai scripts can use `print()` and `debug()` functions for logging:
+
+```rhai
+fn build_request(messages) {
+    print("Building request with " + messages.len() + " messages");
+    debug(messages);
+    
+    let request = #{
+        "model": "custom-model",
+        "messages": messages
+    };
+    
+    debug(request);
+    return request;
+}
+```
+
+These will output to the CBL CLI logs during evaluation runs.
+
+## Authentication
+
+For APIs requiring authentication, you have several options:
+
+### 1. Include in Request Body
+
+```rhai
+fn build_request(messages) {
+    #{
+        "api_key": "your-key-here",
+        "messages": messages
+    }
+}
+```
+
+### 2. Use HTTP Headers
+
+Set authentication headers using environment variables or CBL configuration. The Custom provider automatically includes headers from the CBL context.
+
+### 3. URL Parameters
+
+```rhai
+// Include key in URL when creating custom provider
+// --url https://api.example.com/chat?key=YOUR_KEY
+```
+
+<Warning>
+**Security**: Avoid hardcoding API keys in scripts. Use environment variables or secure configuration management instead.
+</Warning>
+
+## Error Handling
+
+If your script encounters an error, CBL will report it with the error location:
+
+```
+Error: Script error in build_request: Property not found: 'message'
+  at my_provider.rhai:12
+```
+
+Common issues:
+- Accessing non-existent fields: Check the API response structure
+- Type mismatches: Ensure proper type conversions with `.to_string()`
+- Missing return values: Both functions must return a value
+
+## Tips
+
+<Tip>
+**Start with Examples**: Copy an existing example script from `examples/providers/` and modify it for your API.
+</Tip>
+
+<Tip>
+**Test Your API First**: Use `curl` or Postman to understand your API's request/response format before writing the script.
+</Tip>
+
+<Tip>
+**Use Debug Logging**: Add `print()` statements to see what data your script is working with.
+</Tip>
+
+<Warning>
+**Response Validation**: Ensure `parse_response()` always returns a non-empty string, or evaluations will fail.
+</Warning>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Rhai Language Book" icon="book" href="https://rhai.rs/book">
+    Complete Rhai scripting language documentation
+  </Card>
+  
+  <Card title="Example Scripts" icon="code" href="https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers">
+    Ready-to-use provider scripts for common APIs
+  </Card>
+</CardGroup>

@@ -1,0 +1,554 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for the Circuit Breaker Labs CLI
+---
+
+This page covers common issues you may encounter and how to resolve them.
+
+## Common Errors
+
+<Accordion title="Missing API Key">
+
+### Error Message
+
+```
+error: the following required arguments were not provided:
+  --cbl-api-key <CBL_API_KEY>
+```
+
+### Solution
+
+Set the `CBL_API_KEY` environment variable:
+
+```bash
+export CBL_API_KEY="cbl_your_api_key_here"
+```
+
+Or provide it as a command-line argument:
+
+```bash
+cbl --cbl-api-key "cbl_your_key" single-turn ...
+```
+
+<Note>
+Get your API key by contacting [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai?subject=Getting%20Set%20Up)
+</Note>
+
+</Accordion>
+
+<Accordion title="OpenAI API Key Missing">
+
+### Error Message
+
+```
+error: the following required arguments were not provided:
+  --api-key <API_KEY>
+```
+
+### Solution
+
+When using the OpenAI provider, set the `OPENAI_API_KEY` environment variable:
+
+```bash
+export OPENAI_API_KEY="sk-your_openai_key"
+```
+
+Or provide it explicitly:
+
+```bash
+cbl single-turn openai --api-key "sk-your_key" --model gpt-4o ...
+```
+
+</Accordion>
+
+<Accordion title="WebSocket Connection Failed">
+
+### Error Message
+
+```
+WebSocket error: failed to connect to wss://api.circuitbreakerlabs.ai/v1
+```
+
+### Possible Causes and Solutions
+
+**1. Network connectivity issues**
+
+Check your internet connection and verify you can reach the API:
+
+```bash
+ping api.circuitbreakerlabs.ai
+```
+
+**2. Firewall or proxy blocking WebSocket connections**
+
+Ensure your firewall allows outbound WebSocket connections on port 443. If behind a corporate proxy, you may need to configure proxy settings.
+
+**3. Invalid API key**
+
+Verify your API key is correct and active:
+
+```bash
+echo $CBL_API_KEY
+```
+
+**4. Custom base URL misconfigured**
+
+If using a custom `CBL_API_BASE_URL`, verify the URL format:
+
+```bash
+# Correct format (wss:// for WebSocket Secure)
+export CBL_API_BASE_URL="wss://api.circuitbreakerlabs.ai/v1"
+
+# NOT https:// or http://
+```
+
+</Accordion>
+
+<Accordion title="Provider API Errors">
+
+### OpenAI Errors
+
+**Error: Rate limit exceeded**
+
+```
+Provider error: API error: Rate limit exceeded
+```
+
+Solution: Wait and retry, or reduce the number of variations/test cases:
+
+```bash
+# Reduce load
+cbl single-turn --variations 2 --maximum-iteration-layers 1 ...
+```
+
+**Error: Invalid model**
+
+```
+Provider error: API error: The model 'gpt-5' does not exist
+```
+
+Solution: Use a valid OpenAI model name:
+
+```bash
+cbl single-turn openai --model gpt-4o ...
+# Valid models: gpt-4o, gpt-4-turbo, gpt-3.5-turbo, etc.
+```
+
+**Error: Insufficient quota**
+
+```
+Provider error: API error: You exceeded your current quota
+```
+
+Solution: Check your OpenAI billing settings and add credits to your account.
+
+### Ollama Errors
+
+**Error: Connection refused**
+
+```
+Provider error: Network error: Connection refused
+```
+
+Solution: Ensure Ollama is running:
+
+```bash
+# Start Ollama
+ollama serve
+
+# Verify it's running
+curl http://localhost:11434/api/tags
+```
+
+**Error: Model not found**
+
+```
+Provider error: API error: model 'llama3' not found
+```
+
+Solution: Pull the model first:
+
+```bash
+# Pull the model
+ollama pull llama2
+
+# List available models
+ollama list
+
+# Then run evaluation
+cbl single-turn ollama --model llama2 ...
+```
+
+</Accordion>
+
+<Accordion title="Script Errors (Custom Provider)">
+
+### Error Message
+
+```
+Provider error: Script execution error: Function not found: transform_request
+```
+
+### Solution
+
+Your Rhai script must define the required functions. See the [examples/providers/](https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers) directory for templates.
+
+Minimal script structure:
+
+```rhai
+// Transform CBL request to your API format
+fn transform_request(messages) {
+    #{
+        messages: messages,
+        // your API-specific fields
+    }
+}
+
+// Extract response from your API format
+fn extract_response(response) {
+    response.content  // adjust for your API
+}
+```
+
+</Accordion>
+
+<Accordion title="File Write Errors">
+
+### Error Message
+
+```
+Result save error: Permission denied (os error 13)
+```
+
+### Solution
+
+**1. Check directory permissions**
+
+```bash
+ls -la results/
+```
+
+**2. Use a different output directory**
+
+```bash
+cbl --output-file ~/evaluations/results.json single-turn ...
+```
+
+**3. Ensure the parent directory exists**
+
+```bash
+mkdir -p results
+cbl --output-file results/eval.json single-turn ...
+```
+
+</Accordion>
+
+<Accordion title="JSON Parsing Errors">
+
+### Error Message
+
+```
+JSON serialization error: expected value at line 1 column 1
+```
+
+### Solution
+
+This usually indicates the API returned unexpected output. Enable debug logging:
+
+```bash
+cbl --log-mode --log-level debug single-turn ...
+```
+
+Check the logs for the actual API response and verify:
+- The provider is returning valid responses
+- Your custom script (if using custom provider) is formatting output correctly
+- The API endpoint is responding with the expected format
+
+</Accordion>
+
+## Debugging Techniques
+
+### Enable Log Mode
+
+Disable the TUI and see detailed logs:
+
+```bash
+cbl --log-mode --log-level debug single-turn ...
+```
+
+This shows:
+- WebSocket connection details
+- API requests and responses
+- Evaluation progress
+- Error stack traces
+
+### Increase Log Level
+
+Get more detailed information:
+
+```bash
+# Show all debug information
+cbl --log-level debug single-turn ...
+
+# Show extremely verbose trace logs
+cbl --log-level trace single-turn ...
+```
+
+<Warning>
+`trace` level logging can be very verbose. Use it only when debugging specific issues.
+</Warning>
+
+### Test Provider Connection
+
+Verify your provider is working before running full evaluations:
+
+**OpenAI:**
+```bash
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $OPENAI_API_KEY"
+```
+
+**Ollama:**
+```bash
+curl http://localhost:11434/api/tags
+```
+
+### Use Minimal Test Cases
+
+Start with a small evaluation to isolate issues:
+
+```bash
+cbl single-turn \
+  --threshold 0.5 \
+  --variations 1 \
+  --maximum-iteration-layers 1 \
+  openai --model gpt-4o
+```
+
+### Check Network Connectivity
+
+Verify you can reach the Circuit Breaker Labs API:
+
+```bash
+# Check DNS resolution
+nslookup api.circuitbreakerlabs.ai
+
+# Check HTTPS connectivity
+curl -I https://api.circuitbreakerlabs.ai
+```
+
+## Configuration Issues
+
+<Accordion title="Environment Variables Not Working">
+
+### Issue
+
+Environment variables aren't being recognized.
+
+### Solution
+
+**1. Verify they're exported**
+
+```bash
+echo $CBL_API_KEY
+echo $OPENAI_API_KEY
+```
+
+**2. Export in the same shell session**
+
+```bash
+# These must be in the same terminal session
+export CBL_API_KEY="cbl_..."
+export OPENAI_API_KEY="sk-..."
+cbl single-turn ...
+```
+
+**3. Add to shell profile for persistence**
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+echo 'export CBL_API_KEY="cbl_..."' >> ~/.bashrc
+source ~/.bashrc
+```
+
+</Accordion>
+
+<Accordion title="Custom Headers Not Applied">
+
+### Issue
+
+Headers specified with `--add-header` aren't being sent.
+
+### Solution
+
+Verify the header format:
+
+```bash
+# Correct format (in quotes, with colon)
+cbl --add-header "X-Custom:value" single-turn ...
+
+# Multiple headers
+cbl --add-header "X-Custom:value" --add-header "X-Another:value2" single-turn ...
+```
+
+Enable debug logging to verify headers are being sent:
+
+```bash
+cbl --log-mode --log-level debug --add-header "X-Test:value" single-turn ...
+```
+
+</Accordion>
+
+<Accordion title="Wrong Command Order">
+
+### Issue
+
+```
+error: unexpected argument '--threshold' found
+```
+
+### Solution
+
+The command structure is:
+
+```bash
+cbl [GLOBAL_OPTIONS] <EVALUATION_TYPE> [EVAL_OPTIONS] <PROVIDER> [PROVIDER_OPTIONS]
+```
+
+Example order:
+
+```bash
+# Correct
+cbl --log-mode --output-file results.json \
+  single-turn --threshold 0.5 --variations 2 \
+  openai --model gpt-4o --temperature 0.7
+
+# Wrong - global options must come first
+cbl single-turn --threshold 0.5 --log-mode ...
+```
+
+</Accordion>
+
+## Performance Issues
+
+<Accordion title="Evaluation Running Slowly">
+
+### Possible Causes and Solutions
+
+**1. High number of variations**
+
+Reduce `--variations` and `--maximum-iteration-layers`:
+
+```bash
+# Faster
+cbl single-turn --variations 2 --maximum-iteration-layers 1 ...
+
+# Slower
+cbl single-turn --variations 5 --maximum-iteration-layers 3 ...
+```
+
+**2. Provider rate limits**
+
+OpenAI and other providers have rate limits. The CLI automatically retries, but this adds latency.
+
+**3. Network latency**
+
+If using Ollama, ensure it's running locally for best performance:
+
+```bash
+# Local Ollama (fast)
+ollama serve
+cbl single-turn ollama --model llama2 ...
+```
+
+**4. Large context windows**
+
+For Ollama, reduce `--num-ctx` if you don't need large contexts:
+
+```bash
+cbl single-turn ollama --model llama2 --num-ctx 2048 ...
+```
+
+</Accordion>
+
+<Accordion title="High Memory Usage">
+
+### Issue
+
+The CLI or provider is consuming too much memory.
+
+### Solution
+
+For Ollama, limit GPU layers and context size:
+
+```bash
+cbl single-turn ollama \
+  --model llama2 \
+  --num-gpu 20 \
+  --num-ctx 2048 \
+  ...
+```
+
+Run fewer evaluations concurrently and process in batches.
+
+</Accordion>
+
+## Getting Help
+
+### Command Help
+
+View available options for any command:
+
+```bash
+# Main help
+cbl help
+
+# Evaluation type help
+cbl single-turn help
+cbl multi-turn help
+
+# Provider help
+cbl single-turn openai help
+cbl single-turn ollama help
+cbl single-turn custom help
+```
+
+### Enable Verbose Output
+
+Combine log mode with debug level for maximum information:
+
+```bash
+cbl --log-mode --log-level trace single-turn ...
+```
+
+### Check Version
+
+```bash
+cbl --version
+```
+
+### Contact Support
+
+If you're still experiencing issues:
+
+1. **Collect debug logs:**
+   ```bash
+   cbl --log-mode --log-level debug single-turn ... > debug.log 2>&1
+   ```
+
+2. **Check the repository:**  
+   Visit [github.com/circuitbreakerlabs/cli](https://github.com/circuitbreakerlabs/cli) for:
+   - Known issues
+   - Latest releases
+   - Example configurations
+
+3. **Contact the team:**  
+   Email [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai) with:
+   - Your command
+   - Error message
+   - Debug logs
+   - CLI version (`cbl --version`)
+
+<Note>
+When reporting issues, always include the CLI version and relevant error messages from debug logs.
+</Note>

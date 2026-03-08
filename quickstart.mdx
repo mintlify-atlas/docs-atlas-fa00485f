@@ -1,80 +1,566 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Run your first AI safety evaluation with Circuit Breaker Labs CLI in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through running your first safety evaluations using the Circuit Breaker Labs CLI. You'll learn how to run both single-turn and multi-turn evaluations against OpenAI models.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Installed the CLI">
+    Follow the [Installation Guide](/installation) to install `cbl` on your system.
+  </Step>
+  
+  <Step title="Set Up API Keys">
+    Export your required API keys:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    export CBL_API_KEY="your_circuit_breaker_labs_api_key"
+    export OPENAI_API_KEY="your_openai_api_key"
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    <Note>
+      Don't have a Circuit Breaker Labs API key? Contact [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai?subject=Getting%20Set%20Up&body=I%27m%20interested%20in%20using%20Circuit%20Breaker%20Labs%27%20CLI%20tool.) to get access.
+    </Note>
+  </Step>
+  
+  <Step title="Verify Installation">
+    Confirm `cbl` is working:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    cbl help
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Your First Single-Turn Evaluation
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Single-turn evaluations test how your model responds to individual unsafe prompts. Let's run a basic evaluation against GPT-4:
 
-### Step 3: Go live
+### Basic Single-Turn Command
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o-mini
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  This evaluation will:
+  - Test the `gpt-4o-mini` model against the default `suicidal_ideation` test case group
+  - Generate 2 variations of each unsafe prompt
+  - Use up to 2 iteration layers for adversarial refinement
+  - Fail any responses with a safety score below 0.5
 </Note>
+
+### Understanding the Command
+
+Let's break down each part:
+
+<CodeGroup>
+```bash Command Structure
+cbl single-turn \           # Evaluation type
+    --threshold 0.5 \        # Safety score threshold (0.0-1.0)
+    --variations 2 \         # Number of prompt variations per test
+    --maximum-iteration-layers 2 \  # Adversarial refinement depth
+    openai \                 # Provider
+    --model gpt-4o-mini      # Model identifier
+```
+
+```bash Full Example
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o-mini \
+    --temperature 1.0
+```
+</CodeGroup>
+
+### Watch the Progress
+
+When you run the command, you'll see an interactive TUI (terminal user interface) showing:
+
+- Current test case being evaluated
+- Number of prompts sent and responses received
+- Safety scores in real-time
+- Progress through iteration layers
+
+### View the Results
+
+After the evaluation completes, `cbl` saves a detailed JSON report:
+
+```bash
+# Default filename (auto-generated with timestamp)
+circuit_breaker_labs_single_turn_evaluation_20260308_143052.json
+```
+
+To specify a custom output file:
+
+```bash
+cbl --output-file my-evaluation.json single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o-mini
+```
+
+## Your First Multi-Turn Evaluation
+
+Multi-turn evaluations test conversational safety across multiple dialogue turns. This is crucial for chatbots and conversational AI systems.
+
+### Basic Multi-Turn Command
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    openai --model gpt-4o-mini
+```
+
+<Note>
+  This evaluation will:
+  - Test `gpt-4o-mini` in conversational scenarios
+  - Run conversations up to 8 turns (4 user messages, 4 assistant responses)
+  - Use both `user_persona` and `semantic_chunks` test types
+  - Apply the default `suicidal_ideation` test case group
+  - Fail responses with safety scores below 0.5
+</Note>
+
+### Understanding Multi-Turn Parameters
+
+<CodeGroup>
+```bash Command Structure
+cbl multi-turn \            # Evaluation type
+    --threshold 0.5 \        # Safety score threshold
+    --max-turns 8 \          # Maximum conversation turns (should be even)
+    --test-types user_persona,semantic_chunks \  # Test strategies
+    openai \                 # Provider
+    --model gpt-4o-mini      # Model identifier
+```
+
+```bash With Custom Test Groups
+cbl multi-turn \
+    --threshold 0.3 \
+    --max-turns 6 \
+    --test-types user_persona \
+    --test-case-groups suicidal_ideation,violence \
+    openai \
+    --model gpt-4o \
+    --temperature 0.7
+```
+</CodeGroup>
+
+### Multi-Turn Test Types
+
+- **`user_persona`**: Tests with simulated user personas attempting to elicit unsafe responses
+- **`semantic_chunks`**: Tests by breaking unsafe content into semantic segments across turns
+
+<Tip>
+  You can specify both test types or just one. Using both provides more comprehensive coverage.
+</Tip>
+
+### Results
+
+Multi-turn evaluations also generate timestamped JSON reports:
+
+```bash
+circuit_breaker_labs_multi_turn_evaluation_20260308_144523.json
+```
+
+## Advanced Examples
+
+### Testing a Custom Fine-Tune
+
+```bash
+cbl --output-file finetune-eval.json single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model ft:gpt-4o-mini-2024-07-18:my-org:my-custom-model:abc123 \
+    --temperature 1.2
+```
+
+### Using Ollama for Local Models
+
+```bash
+# Make sure Ollama is running: ollama serve
+
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama \
+    --model llama3.2:8b \
+    --temperature 0.8 \
+    --num-ctx 8192
+```
+
+### Testing Multiple Test Case Groups
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    --test-case-groups suicidal_ideation,self_harm,violence \
+    openai --model gpt-4o
+```
+
+### Log Mode (No TUI)
+
+If you're running in CI/CD or prefer log output:
+
+```bash
+cbl --log-mode --log-level info single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o-mini
+```
+
+### Custom Provider Example
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://my-api.example.com/v1/chat \
+    --script ./my-provider-script.rhai
+```
+
+<Note>
+  Custom providers require a Rhai script to translate between Circuit Breaker Labs protocol and your API's format. See the [examples/providers/](https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers) directory for script templates.
+</Note>
+
+## Understanding the Output
+
+### JSON Report Structure
+
+The evaluation report contains:
+
+- **Summary**: Overall pass/fail status, total tests, safety scores
+- **Test Cases**: Detailed results for each test case
+- **Prompts and Responses**: Full conversation history with safety scores
+- **Metadata**: Model info, parameters, timestamps
+
+Example structure:
+
+```json
+{
+  "evaluation_type": "single_turn",
+  "timestamp": "2026-03-08T14:30:52Z",
+  "model": "gpt-4o-mini",
+  "threshold": 0.5,
+  "summary": {
+    "total_tests": 20,
+    "passed": 18,
+    "failed": 2,
+    "average_safety_score": 0.85
+  },
+  "test_results": [
+    {
+      "test_case_id": "...",
+      "prompt": "...",
+      "response": "...",
+      "safety_score": 0.92,
+      "passed": true
+    }
+  ]
+}
+```
+
+### Interpreting Safety Scores
+
+- **1.0**: Completely safe response
+- **0.7-0.9**: Mostly safe, minor concerns
+- **0.4-0.6**: Moderate safety issues
+- **0.0-0.3**: Significant safety concerns
+
+<Warning>
+  Set your `--threshold` based on your risk tolerance. Common values:
+  - **0.5**: Balanced (default for testing)
+  - **0.7**: More strict (production chatbots)
+  - **0.3**: More lenient (research/development)
+</Warning>
+
+## Provider-Specific Options
+
+### OpenAI Provider
+
+<CodeGroup>
+```bash Required
+openai \
+  --api-key YOUR_KEY \      # Or use OPENAI_API_KEY env var
+  --model gpt-4o            # Model name or fine-tune ID
+```
+
+```bash Common Options
+openai \
+  --model gpt-4o \
+  --temperature 1.0 \       # 0.0-2.0, higher = more creative
+  --max-completion-tokens 2048 \  # Max response length
+  --top-p 0.9               # Nucleus sampling parameter
+```
+
+```bash Advanced Options
+openai \
+  --model gpt-4o \
+  --temperature 1.0 \
+  --frequency-penalty 0.5 \ # -2.0 to 2.0, penalize repetition
+  --presence-penalty 0.3 \  # -2.0 to 2.0, encourage new topics
+  --base-url https://api.openai.com/v1  # For compatible endpoints
+```
+</CodeGroup>
+
+### Ollama Provider
+
+<CodeGroup>
+```bash Required
+ollama \
+  --model llama3.2:8b       # Model name from Ollama
+```
+
+```bash Common Options
+ollama \
+  --model llama3.2:8b \
+  --temperature 0.8 \       # Sampling temperature
+  --num-ctx 8192 \          # Context window size
+  --base-url http://localhost:11434  # Ollama server URL
+```
+
+```bash Advanced Options
+ollama \
+  --model llama3.2:8b \
+  --temperature 0.8 \
+  --num-predict 512 \       # Max tokens to generate
+  --top-k 40 \              # Top-k sampling
+  --top-p 0.9 \             # Top-p sampling
+  --repeat-penalty 1.1      # Penalize repetition
+```
+</CodeGroup>
+
+### Custom Provider
+
+```bash
+custom \
+  --url https://api.example.com/v1/chat \  # Your API endpoint
+  --script ./provider.rhai                  # Rhai transformation script
+```
+
+## Common Parameter Reference
+
+### Global Options
+
+| Flag | Description | Default |
+|------|-------------|----------|
+| `--cbl-api-key` | Circuit Breaker Labs API key | `$CBL_API_KEY` |
+| `--cbl-api-base-url` | CBL API endpoint | `https://api.circuitbreakerlabs.ai/v1` |
+| `--output-file` | Custom output filename | Auto-generated timestamp |
+| `--log-mode` | Disable TUI, show logs | `false` |
+| `--log-level` | Log verbosity | `info` |
+| `--add-header` | Add custom HTTP headers | None |
+
+### Single-Turn Options
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--threshold` | Safety score threshold (0.0-1.0) | Yes |
+| `--variations` | Prompt variations per test | Yes |
+| `--maximum-iteration-layers` | Adversarial refinement depth | Yes |
+| `--test-case-groups` | Test categories (comma-separated) | Default: `suicidal_ideation` |
+
+### Multi-Turn Options
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--threshold` | Safety score threshold (0.0-1.0) | Yes |
+| `--max-turns` | Maximum conversation turns (even number) | Yes |
+| `--test-types` | Test strategies (comma-separated) | Yes |
+| `--test-case-groups` | Test categories (comma-separated) | Default: `suicidal_ideation` |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection failed to Circuit Breaker Labs API">
+    Check that:
+    1. Your `CBL_API_KEY` is set correctly
+    2. You have an active internet connection
+    3. Your firewall allows WebSocket connections
+    
+    Try running with `--log-mode --log-level debug` for more details.
+  </Accordion>
+  
+  <Accordion title="OpenAI API authentication error">
+    Verify your OpenAI API key:
+    
+    ```bash
+    echo $OPENAI_API_KEY
+    ```
+    
+    Make sure it starts with `sk-` and is valid. You can test it:
+    
+    ```bash
+    curl https://api.openai.com/v1/models \
+      -H "Authorization: Bearer $OPENAI_API_KEY"
+    ```
+  </Accordion>
+  
+  <Accordion title="Ollama connection refused">
+    Ensure Ollama is running:
+    
+    ```bash
+    # Start Ollama server
+    ollama serve
+    
+    # In another terminal, verify it's working
+    ollama list
+    ```
+    
+    If using a custom host:
+    
+    ```bash
+    export OLLAMA_BASE_URL="http://your-host:11434"
+    ```
+  </Accordion>
+  
+  <Accordion title="Model not found error">
+    For OpenAI: Verify the model name or fine-tune ID is correct.
+    
+    For Ollama: Make sure the model is pulled:
+    
+    ```bash
+    ollama pull llama3.2:8b
+    ```
+  </Accordion>
+  
+  <Accordion title="Evaluation is taking too long">
+    Reduce the test scope:
+    - Lower `--variations` (try 1 or 2)
+    - Reduce `--maximum-iteration-layers` (try 1)
+    - Decrease `--max-turns` for multi-turn tests
+    - Test fewer `--test-case-groups`
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Start Small">
+    Begin with minimal parameters to understand evaluation duration:
+    
+    ```bash
+    cbl single-turn \
+      --threshold 0.5 \
+      --variations 1 \
+      --maximum-iteration-layers 1 \
+      openai --model gpt-4o-mini
+    ```
+  </Step>
+  
+  <Step title="Iterate on Thresholds">
+    Adjust `--threshold` based on your risk profile:
+    - Start at 0.5 for baseline
+    - Increase to 0.7-0.8 for production systems
+    - Lower to 0.3-0.4 for research/development
+  </Step>
+  
+  <Step title="Use Log Mode for CI/CD">
+    In automated pipelines, use `--log-mode` for structured output:
+    
+    ```bash
+    cbl --log-mode --output-file ci-results.json single-turn \
+      --threshold 0.7 \
+      --variations 2 \
+      --maximum-iteration-layers 2 \
+      openai --model gpt-4o
+    ```
+  </Step>
+  
+  <Step title="Version Control Your Scripts">
+    Save your evaluation commands in scripts:
+    
+    ```bash
+    #!/bin/bash
+    # evaluate-model.sh
+    
+    cbl --output-file "results/eval-$(date +%Y%m%d).json" single-turn \
+      --threshold 0.7 \
+      --variations 3 \
+      --maximum-iteration-layers 2 \
+      openai --model $MODEL_ID
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/circuitbreakerlabs/cli">
+    Explore example scripts and advanced configurations
+  </Card>
+  
+  <Card title="Custom Providers" icon="code" href="https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers">
+    Learn how to integrate custom model endpoints
+  </Card>
+  
+  <Card title="API Documentation" icon="book" href="https://api.circuitbreakerlabs.ai/v1/docs">
+    Deep dive into the Circuit Breaker Labs API
+  </Card>
+  
+  <Card title="Get Support" icon="envelope" href="mailto:team@circuitbreakerlabs.ai">
+    Contact the team for help or questions
+  </Card>
+</CardGroup>
+
+## Example Workflow
+
+Here's a complete workflow from installation to analysis:
+
+```bash
+# 1. Install and configure
+export CBL_API_KEY="cbl_..."
+export OPENAI_API_KEY="sk-..."
+
+# 2. Run a quick test
+cbl single-turn \
+  --threshold 0.5 \
+  --variations 1 \
+  --maximum-iteration-layers 1 \
+  openai --model gpt-4o-mini
+
+# 3. Run a comprehensive evaluation
+cbl --output-file comprehensive-eval.json single-turn \
+  --threshold 0.7 \
+  --variations 3 \
+  --maximum-iteration-layers 2 \
+  --test-case-groups suicidal_ideation,self_harm \
+  openai \
+  --model gpt-4o \
+  --temperature 1.0
+
+# 4. Test multi-turn scenarios
+cbl --output-file multi-turn-eval.json multi-turn \
+  --threshold 0.7 \
+  --max-turns 8 \
+  --test-types user_persona,semantic_chunks \
+  openai --model gpt-4o
+
+# 5. Analyze results
+cat comprehensive-eval.json | jq '.summary'
+cat multi-turn-eval.json | jq '.summary'
+```
+
+---
+
+**Questions?** Reach out to [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai)

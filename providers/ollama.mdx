@@ -1,0 +1,308 @@
+---
+title: "Ollama Provider"
+description: "Run evaluations with locally hosted Ollama models"
+---
+
+The Ollama provider allows you to run AI safety evaluations using models hosted locally with [Ollama](https://ollama.ai), providing privacy and cost-effectiveness for your testing workflow.
+
+## Prerequisites
+
+### Install Ollama
+
+Ollama must be running locally before using this provider.
+
+<Steps>
+  <Step title="Download and Install">
+    Download Ollama from [ollama.ai](https://ollama.ai) and follow the installation instructions for your operating system:
+    
+    - **macOS**: Download and run the installer
+    - **Linux**: Run `curl -fsSL https://ollama.ai/install.sh | sh`
+    - **Windows**: Download the Windows installer
+  </Step>
+  
+  <Step title="Start Ollama Service">
+    After installation, start the Ollama service:
+    
+    ```bash
+    ollama serve
+    ```
+    
+    By default, Ollama runs on `http://localhost:11434`
+  </Step>
+  
+  <Step title="Pull a Model">
+    Download a model to use for evaluations:
+    
+    ```bash
+    ollama pull llama3.2
+    ```
+    
+    View available models at [ollama.ai/library](https://ollama.ai/library)
+  </Step>
+</Steps>
+
+## Basic Usage
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama --model llama3.2
+```
+
+## Configuration Options
+
+### Required Options
+
+<ParamField path="--model" type="string" required>
+  Ollama model name to use for evaluations.
+  
+  **Examples**: `llama3.2`, `mistral`, `codellama`, `gemma`
+  
+  <Note>The model must already be pulled via `ollama pull <model-name>`</Note>
+</ParamField>
+
+### Optional Options
+
+<ParamField path="--base-url" type="string" default="http://localhost:11434">
+  Ollama server base URL. Change this if Ollama is running on a different host or port.
+  
+  **Environment variable**: `OLLAMA_BASE_URL`
+  
+  **Example**: `--base-url http://192.168.1.100:11434`
+</ParamField>
+
+<ParamField path="--logprobs" type="boolean">
+  Return log probabilities for each token in the response.
+</ParamField>
+
+### Model Options
+
+Ollama supports extensive model configuration through the following parameters:
+
+<ParamField path="--temperature" type="float" default="0.8">
+  Model temperature - higher values make answers more creative.
+  
+  **Range**: 0.0 to 2.0
+</ParamField>
+
+<ParamField path="--top-k" type="integer" default="40">
+  Reduces probability of generating nonsense. Higher values give more diverse answers.
+</ParamField>
+
+<ParamField path="--top-p" type="float" default="0.9">
+  Works with top-k. Higher values lead to more diverse text.
+  
+  **Range**: 0.0 to 1.0
+</ParamField>
+
+<ParamField path="--num-predict" type="integer" default="128">
+  Maximum number of tokens to predict.
+  
+  **Special values**:
+  - `-1`: Infinite generation
+  - `-2`: Fill context window
+</ParamField>
+
+<ParamField path="--num-ctx" type="integer" default="2048">
+  Size of the context window (number of tokens).
+</ParamField>
+
+<ParamField path="--repeat-penalty" type="float" default="1.1">
+  How strongly to penalize repetitions. Higher values reduce repetition.
+</ParamField>
+
+<ParamField path="--repeat-last-n" type="integer" default="64">
+  How far back to look to prevent repetition.
+  
+  **Special values**:
+  - `0`: Disabled
+  - `-1`: Use `num_ctx` value
+</ParamField>
+
+<ParamField path="--seed" type="integer" default="0">
+  Random number seed for generation. Use the same seed for reproducible outputs.
+</ParamField>
+
+<ParamField path="--stop" type="string[]">
+  Stop sequences - generation stops when these strings are encountered.
+  
+  **Example**: `--stop END --stop STOP`
+</ParamField>
+
+<ParamField path="--tfs-z" type="float" default="1">
+  Tail free sampling - reduces impact of less probable tokens.
+</ParamField>
+
+<ParamField path="--mirostat" type="integer" default="0">
+  Enable Mirostat sampling for controlling perplexity.
+  
+  **Options**:
+  - `0`: Disabled
+  - `1`: Mirostat 1.0
+  - `2`: Mirostat 2.0
+</ParamField>
+
+<ParamField path="--mirostat-tau" type="float" default="5.0">
+  Mirostat tau - controls balance between coherence and diversity.
+</ParamField>
+
+<ParamField path="--mirostat-eta" type="float" default="0.1">
+  Mirostat learning rate.
+</ParamField>
+
+### Hardware Options
+
+<ParamField path="--num-gpu" type="integer">
+  Number of layers to send to GPU(s). Use to control GPU memory usage.
+</ParamField>
+
+<ParamField path="--num-thread" type="integer">
+  Number of threads to use during computation. Adjust based on your CPU cores.
+</ParamField>
+
+<ParamField path="--num-gqa" type="integer">
+  Number of GQA (Grouped Query Attention) groups in transformer layer. Model-specific setting.
+</ParamField>
+
+## Examples
+
+### Basic Single-Turn Evaluation
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    ollama --model llama3.2
+```
+
+### Multi-Turn with Custom Temperature
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    ollama \
+    --model mistral \
+    --temperature 0.7
+```
+
+### Remote Ollama Instance
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    ollama \
+    --model codellama \
+    --base-url http://192.168.1.100:11434
+```
+
+### Reproducible Results with Seed
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    ollama \
+    --model llama3.2 \
+    --temperature 0.3 \
+    --seed 42
+```
+
+### Large Context Window Configuration
+
+```bash
+cbl multi-turn \
+    --threshold 0.4 \
+    --max-turns 10 \
+    ollama \
+    --model llama3.2 \
+    --num-ctx 8192 \
+    --num-predict 1024
+```
+
+### GPU Optimization
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    ollama \
+    --model llama3.2 \
+    --num-gpu 35 \
+    --num-thread 8
+```
+
+### Advanced Sampling Configuration
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    ollama \
+    --model mistral \
+    --temperature 0.8 \
+    --top-k 50 \
+    --top-p 0.95 \
+    --repeat-penalty 1.2 \
+    --mirostat 2 \
+    --mirostat-tau 5.0
+```
+
+## Popular Models
+
+Here are some popular models available through Ollama:
+
+| Model | Size | Description | Pull Command |
+|-------|------|-------------|-------------|
+| **llama3.2** | 3B | Latest Llama model, efficient and capable | `ollama pull llama3.2` |
+| **llama3.1** | 8B-70B | Previous Llama generation, multiple sizes | `ollama pull llama3.1` |
+| **mistral** | 7B | High-performance open model | `ollama pull mistral` |
+| **mixtral** | 8x7B | Mixture of experts model | `ollama pull mixtral` |
+| **codellama** | 7B-34B | Code-specialized Llama variant | `ollama pull codellama` |
+| **gemma** | 2B-7B | Google's efficient open model | `ollama pull gemma` |
+| **phi** | 2.7B | Microsoft's compact model | `ollama pull phi` |
+
+<Note>
+For a complete list of available models, visit the [Ollama Library](https://ollama.ai/library).
+</Note>
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `OLLAMA_BASE_URL` | Ollama server URL | No (defaults to `http://localhost:11434`) |
+
+## Tips
+
+<Tip>
+**Model Selection**: Larger models (70B+) provide better quality but require more resources. Start with 7B-13B models for development, then scale up if needed.
+</Tip>
+
+<Tip>
+**Context Window**: If you encounter truncation issues, increase `--num-ctx`. Be aware this increases memory usage.
+</Tip>
+
+<Warning>
+**GPU Memory**: Monitor GPU memory usage when running large models. Use `--num-gpu` to control how many layers are offloaded to the GPU.
+</Warning>
+
+<Tip>
+**Reproducibility**: For consistent results across runs, set both `--seed` and `--temperature 0` to minimize randomness.
+</Tip>
+
+## Troubleshooting
+
+### Connection Issues
+
+If you see connection errors:
+
+1. Verify Ollama is running: `ollama list`
+2. Check the service is accessible: `curl http://localhost:11434`
+3. Ensure the model is pulled: `ollama pull <model-name>`
+
+### Performance Issues
+
+- Use `--num-thread` to match your CPU cores
+- Adjust `--num-gpu` to optimize GPU usage
+- Consider using smaller models for faster evaluations

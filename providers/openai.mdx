@@ -1,0 +1,238 @@
+---
+title: "OpenAI Provider"
+description: "Use OpenAI models for AI safety evaluations"
+---
+
+The OpenAI provider enables you to run evaluations against OpenAI's models, including GPT-4, GPT-4 Turbo, and GPT-3.5 Turbo.
+
+## Prerequisites
+
+Before using the OpenAI provider, you need:
+
+1. An OpenAI API key - [Get one here](https://platform.openai.com/api-keys)
+2. Set the `OPENAI_API_KEY` environment variable:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+## Basic Usage
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+
+## Configuration Options
+
+### Required Options
+
+<ParamField path="--model" type="string" required>
+  OpenAI model name to use for evaluations.
+  
+  **Examples**: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`, `gpt-4o-mini`
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+  OpenAI API key for authentication.
+  
+  **Environment variable**: `OPENAI_API_KEY`
+  
+  <Note>The API key can be provided via the `OPENAI_API_KEY` environment variable instead of passing it as a flag.</Note>
+</ParamField>
+
+### Optional Options
+
+<ParamField path="--base-url" type="string" default="https://api.openai.com/v1">
+  OpenAI API base URL for compatible endpoints. Use this to connect to OpenAI-compatible services or custom deployments.
+  
+  **Environment variable**: `OPENAI_BASE_URL`
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  OpenAI organization ID for API requests.
+  
+  **Environment variable**: `OPENAI_ORG_ID`
+</ParamField>
+
+<ParamField path="--temperature" type="float">
+  Sampling temperature between 0 and 2. Higher values make output more random, lower values make it more deterministic.
+  
+  **Range**: 0.0 to 2.0
+</ParamField>
+
+<ParamField path="--top-p" type="float">
+  Nucleus sampling parameter. An alternative to sampling with temperature.
+  
+  **Range**: 0.0 to 1.0
+</ParamField>
+
+<ParamField path="--max-completion-tokens" type="integer">
+  Upper bound for the number of tokens that can be generated for a completion.
+</ParamField>
+
+<ParamField path="--n" type="integer">
+  Number of chat completion choices to generate for each input message.
+</ParamField>
+
+<ParamField path="--frequency-penalty" type="float">
+  Number between -2.0 and 2.0 to penalize new tokens based on their existing frequency in the text.
+  
+  **Range**: -2.0 to 2.0
+</ParamField>
+
+<ParamField path="--presence-penalty" type="float">
+  Number between -2.0 and 2.0 to penalize new tokens based on whether they appear in the text so far.
+  
+  **Range**: -2.0 to 2.0
+</ParamField>
+
+<ParamField path="--logprobs" type="boolean">
+  Whether to return log probabilities of the output tokens.
+</ParamField>
+
+<ParamField path="--top-logprobs" type="integer">
+  Number of most likely tokens to return at each token position, each with an associated log probability.
+  
+  **Range**: 0 to 20
+</ParamField>
+
+<ParamField path="--stop" type="string">
+  Up to 4 sequences where the API will stop generating further tokens. Use comma-separated values for multiple sequences.
+  
+  **Example**: `--stop "\n,END,STOP"`
+</ParamField>
+
+<ParamField path="--logit-bias" type="string">
+  Modify the likelihood of specified tokens appearing in the completion.
+  
+  **Format**: `token_id:bias_value,token_id:bias_value`
+  
+  **Range**: Bias values must be between -100 and 100
+  
+  **Example**: `--logit-bias "1234:50,5678:-30"`
+</ParamField>
+
+<ParamField path="--store" type="boolean">
+  Whether to store the output of this chat completion request for model distillation or evaluation purposes.
+</ParamField>
+
+<ParamField path="--service-tier" type="string">
+  Specifies the processing type used for serving the request.
+  
+  **Options**: `auto`, `default`, `flex`, `scale`, `priority`
+</ParamField>
+
+<ParamField path="--reasoning-effort" type="string">
+  Constrains effort on reasoning for reasoning models like o1.
+  
+  **Options**: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
+</ParamField>
+
+## Examples
+
+### Basic Single-Turn Evaluation
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+
+### Multi-Turn Evaluation with Custom Temperature
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    openai \
+    --model gpt-4-turbo \
+    --temperature 0.7
+```
+
+### Using a Custom Fine-Tuned Model
+
+```bash
+export MY_FINETUNE_ID="ft:gpt-3.5-turbo:my-org:custom_suffix:id"
+
+cbl single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    openai \
+    --model $MY_FINETUNE_ID \
+    --temperature 1.2
+```
+
+### Using an OpenAI-Compatible Endpoint
+
+```bash
+export OPENAI_BASE_URL="https://my-custom-endpoint.com/v1"
+
+cbl single-turn \
+    --threshold 0.5 \
+    openai \
+    --model my-custom-model \
+    --base-url $OPENAI_BASE_URL
+```
+
+### Advanced Configuration with Multiple Parameters
+
+```bash
+cbl multi-turn \
+    --threshold 0.4 \
+    --max-turns 10 \
+    openai \
+    --model gpt-4o \
+    --temperature 0.8 \
+    --top-p 0.95 \
+    --max-completion-tokens 2000 \
+    --frequency-penalty 0.5 \
+    --presence-penalty 0.3 \
+    --stop "END,STOP"
+```
+
+## Supported Models
+
+The OpenAI provider supports all OpenAI chat completion models, including:
+
+- **GPT-4o**: Latest multimodal flagship model
+- **GPT-4o-mini**: Smaller, faster GPT-4o variant
+- **GPT-4 Turbo**: High-performance GPT-4 variant
+- **GPT-4**: Original GPT-4 model
+- **GPT-3.5 Turbo**: Fast and cost-effective model
+- **o1**: Reasoning model series (use with `--reasoning-effort`)
+- **Custom fine-tuned models**: Any fine-tuned model based on supported base models
+
+<Note>
+For the most up-to-date list of available models and their capabilities, see the [OpenAI Models documentation](https://platform.openai.com/docs/models).
+</Note>
+
+## Environment Variables
+
+The following environment variables are supported:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `OPENAI_API_KEY` | Your OpenAI API key | Yes |
+| `OPENAI_BASE_URL` | Custom API endpoint URL | No |
+| `OPENAI_ORG_ID` | Your OpenAI organization ID | No |
+
+## Tips
+
+<Warning>
+**Rate Limits**: Be aware of your OpenAI account's rate limits when running evaluations with many variations or iterations.
+</Warning>
+
+<Tip>
+**Temperature Selection**: For consistent evaluation results, use lower temperature values (0.0-0.3). For more creative or diverse outputs, use higher values (0.7-1.0).
+</Tip>
+
+<Tip>
+**Cost Optimization**: Use `gpt-4o-mini` or `gpt-3.5-turbo` for faster, more cost-effective evaluations during development, then switch to `gpt-4o` or `gpt-4-turbo` for final validation.
+</Tip>

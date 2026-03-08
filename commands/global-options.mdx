@@ -1,0 +1,370 @@
+---
+title: 'Global Options'
+description: 'Global command-line options that apply to all Circuit Breaker Labs CLI commands'
+---
+
+## Overview
+
+Global options are specified before the command (e.g., `single-turn`, `multi-turn`) and apply to all CLI operations.
+
+```bash
+cbl [global-options] <command> [command-options]
+```
+
+## API Configuration
+
+### Circuit Breaker Labs API Key
+
+<ParamField path="--cbl-api-key" type="string" required>
+  Circuit Breaker Labs API key for authentication with the CBL evaluation service.
+  
+  **Environment Variable:** `CBL_API_KEY`
+  
+  ```bash
+  # Set via environment variable (recommended)
+  export CBL_API_KEY="your-api-key-here"
+  cbl single-turn ...
+  
+  # Or pass directly (not recommended for security)
+  cbl --cbl-api-key "your-api-key-here" single-turn ...
+  ```
+  
+  <Warning>
+    Keep your API key secure. Never commit it to version control. Use environment variables or secure secret management.
+  </Warning>
+</ParamField>
+
+### Circuit Breaker Labs API Base URL
+
+<ParamField path="--cbl-api-base-url" type="string" default="https://api.circuitbreakerlabs.com">
+  Base URL for the Circuit Breaker Labs API endpoint. Typically only changed for custom deployments or testing.
+  
+  **Environment Variable:** `CBL_API_BASE_URL`
+  
+  ```bash
+  # Use default production endpoint (most common)
+  cbl single-turn ...
+  
+  # Use custom endpoint
+  export CBL_API_BASE_URL="https://custom.api.example.com"
+  cbl single-turn ...
+  
+  # Or pass directly
+  cbl --cbl-api-base-url "https://custom.api.example.com" single-turn ...
+  ```
+  
+  <Note>
+    The default value points to Circuit Breaker Labs' production API. Only change this if you're using a custom deployment or testing environment.
+  </Note>
+</ParamField>
+
+## Logging Options
+
+### Log Level
+
+<ParamField path="--log-level" type="enum" default="info">
+  Sets the logging verbosity level.
+  
+  **Available Levels:**
+  - `error` - Only critical errors
+  - `warn` - Warnings and errors
+  - `info` - General information (default)
+  - `debug` - Detailed debugging information
+  - `trace` - Very detailed trace information
+  
+  ```bash
+  # Default info logging
+  cbl single-turn ...
+  
+  # Debug logging for troubleshooting
+  cbl --log-level debug single-turn ...
+  
+  # Minimal error-only logging
+  cbl --log-level error single-turn ...
+  ```
+  
+  <Tip>
+    Use `debug` or `trace` level when troubleshooting issues or reporting bugs.
+  </Tip>
+</ParamField>
+
+### Log Mode
+
+<ParamField path="--log-mode" type="boolean" default="false">
+  Enable log mode to disable the interactive TUI and output logs directly to stdout.
+  
+  ```bash
+  # Default: Interactive TUI
+  cbl single-turn ...
+  
+  # Log mode: Plain text output
+  cbl --log-mode single-turn ...
+  
+  # Useful for CI/CD pipelines
+  cbl --log-mode --log-level debug single-turn ... > output.log
+  ```
+  
+  **Use Cases:**
+  - CI/CD pipelines
+  - Automated scripts
+  - Log file generation
+  - When running in non-interactive environments
+  
+  <Note>
+    When `--log-mode` is enabled, the TUI (Terminal User Interface) is disabled and all output goes to stdout, making it suitable for automation.
+  </Note>
+</ParamField>
+
+## Output Configuration
+
+### Output File
+
+<ParamField path="--output-file" type="string">
+  Specify a custom path for evaluation results. If not provided, results are saved with an auto-generated timestamp.
+  
+  ```bash
+  # Auto-generated filename (default)
+  cbl single-turn ...
+  # Creates: evaluation_results_2026-03-08_14-30-45.json
+  
+  # Custom filename
+  cbl --output-file results.json single-turn ...
+  
+  # Custom path and filename
+  cbl --output-file ./reports/eval-2026-03-08.json single-turn ...
+  ```
+  
+  **Default Format:** `evaluation_results_YYYY-MM-DD_HH-MM-SS.json`
+  
+  <Tip>
+    Use descriptive filenames that include dates, model names, or test identifiers for better organization:
+    ```bash
+    --output-file "eval-gpt4o-$(date +%Y%m%d).json"
+    ```
+  </Tip>
+</ParamField>
+
+## Custom Headers
+
+### Add Header
+
+<ParamField path="--add-header" type="string">
+  Add custom HTTP headers to provider requests. Can be specified multiple times for multiple headers.
+  
+  **Format:** `Key:Value`
+  
+  ```bash
+  # Single custom header
+  cbl --add-header "X-Custom-Header:value" single-turn ...
+  
+  # Multiple custom headers
+  cbl --add-header "X-API-Version:v2" \
+      --add-header "X-Request-ID:abc123" \
+      single-turn ...
+  
+  # Authentication header (if needed for custom provider)
+  cbl --add-header "Authorization:Bearer token123" \
+      single-turn ...
+  ```
+  
+  **Use Cases:**
+  - Custom authentication for providers
+  - Request tracking headers
+  - API version specification
+  - Custom routing headers
+  
+  <Warning>
+    Custom headers are sent to the provider API (OpenAI, Ollama, or custom), not to Circuit Breaker Labs API.
+  </Warning>
+</ParamField>
+
+## Complete Examples
+
+### Basic Setup with Environment Variables
+
+```bash
+# Set API keys once
+export CBL_API_KEY="your-cbl-api-key"
+export OPENAI_API_KEY="your-openai-api-key"
+
+# Run evaluations without repeating credentials
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 openai --model gpt-4o
+```
+
+### Production Evaluation with Custom Output
+
+```bash
+cbl --output-file "prod-eval-$(date +%Y%m%d).json" \
+    --log-level info \
+    single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o
+```
+
+### CI/CD Pipeline Configuration
+
+```bash
+#!/bin/bash
+# evaluation.sh - CI/CD script
+
+cbl --log-mode \
+    --log-level info \
+    --output-file "ci-evaluation-${CI_BUILD_ID}.json" \
+    single-turn \
+    --threshold 0.4 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model $MODEL_NAME 2>&1 | tee evaluation.log
+```
+
+### Debug Mode with Verbose Logging
+
+```bash
+cbl --log-mode \
+    --log-level debug \
+    --output-file debug-results.json \
+    single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o 2>&1 | tee debug.log
+```
+
+### Custom Endpoint with Headers
+
+```bash
+cbl --cbl-api-base-url "https://custom.cbllabs.internal" \
+    --add-header "X-Request-ID:$(uuidgen)" \
+    --add-header "X-Environment:staging" \
+    --output-file staging-eval.json \
+    single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://internal.api.example.com/chat \
+    --script ./custom-provider.rhai
+```
+
+### Multi-Turn with Complete Configuration
+
+```bash
+export CBL_API_KEY="your-api-key"
+export OPENAI_API_KEY="your-openai-key"
+
+cbl --log-level info \
+    --output-file "multi-turn-eval.json" \
+    multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    openai \
+    --model gpt-4o \
+    --temperature 0.9
+```
+
+## Environment Variables Summary
+
+All global options can be set via environment variables:
+
+| CLI Option | Environment Variable | Required | Default |
+|------------|---------------------|----------|----------|
+| `--cbl-api-key` | `CBL_API_KEY` | Yes | None |
+| `--cbl-api-base-url` | `CBL_API_BASE_URL` | No | `https://api.circuitbreakerlabs.com` |
+| `--log-level` | N/A | No | `info` |
+| `--log-mode` | N/A | No | `false` |
+| `--output-file` | N/A | No | Auto-generated |
+| `--add-header` | N/A | No | None |
+
+### Setting Environment Variables
+
+<CodeGroup>
+
+```bash Bash/Zsh
+# Add to ~/.bashrc or ~/.zshrc
+export CBL_API_KEY="your-api-key"
+export CBL_API_BASE_URL="https://api.circuitbreakerlabs.com"
+export OPENAI_API_KEY="your-openai-key"
+```
+
+```fish Fish Shell
+# Add to ~/.config/fish/config.fish
+set -x CBL_API_KEY "your-api-key"
+set -x CBL_API_BASE_URL "https://api.circuitbreakerlabs.com"
+set -x OPENAI_API_KEY "your-openai-key"
+```
+
+```powershell PowerShell
+# Add to $PROFILE
+$env:CBL_API_KEY = "your-api-key"
+$env:CBL_API_BASE_URL = "https://api.circuitbreakerlabs.com"
+$env:OPENAI_API_KEY = "your-openai-key"
+```
+
+```yaml Docker Compose
+services:
+  evaluator:
+    image: cbl-evaluator
+    environment:
+      - CBL_API_KEY=your-api-key
+      - CBL_API_BASE_URL=https://api.circuitbreakerlabs.com
+      - OPENAI_API_KEY=your-openai-key
+```
+
+</CodeGroup>
+
+## Best Practices
+
+### Security
+
+<Warning>
+  **Never commit API keys to version control.** Use environment variables or secret management systems.
+</Warning>
+
+```bash
+# Good: Use environment variables
+export CBL_API_KEY="your-key"
+cbl single-turn ...
+
+# Bad: Pass keys in command line (visible in history)
+cbl --cbl-api-key "your-key" single-turn ...
+```
+
+### Logging Strategy
+
+<Tip>
+  **Development:** Use `--log-level debug` with `--log-mode` for detailed troubleshooting.
+  
+  **Production:** Use `--log-level info` without `--log-mode` for the interactive TUI.
+  
+  **CI/CD:** Use `--log-mode` with appropriate log level and redirect to files.
+</Tip>
+
+### Output Organization
+
+```bash
+# Create organized output structure
+mkdir -p ./evaluations/$(date +%Y-%m)
+
+cbl --output-file "./evaluations/$(date +%Y-%m)/eval-$(date +%Y%m%d-%H%M%S).json" \
+    single-turn ...
+```
+
+## Related Documentation
+
+<CardGroup cols={3}>
+  <Card title="Single-Turn" icon="message" href="/commands/single-turn">
+    Single-turn command reference
+  </Card>
+  <Card title="Multi-Turn" icon="messages" href="/commands/multi-turn">
+    Multi-turn command reference
+  </Card>
+  <Card title="Commands Overview" icon="terminal" href="/commands/overview">
+    Overview of all commands
+  </Card>
+</CardGroup>

@@ -1,0 +1,361 @@
+---
+title: 'multi-turn Command'
+description: 'Complete reference for the multi-turn conversational evaluation command'
+---
+
+## Overview
+
+The `multi-turn` command runs conversational evaluations that test the model across multiple dialogue turns. This evaluates how models handle safety concerns in extended conversations.
+
+## Command Syntax
+
+```bash
+cbl [global-options] multi-turn [options] <provider> [provider-options]
+```
+
+## Required Options
+
+<ParamField path="--threshold" type="float" required>
+  Safety score threshold for evaluation. Responses with scores below this threshold will fail the evaluation.
+  
+  - Range: `0.0` to `1.0`
+  - Example: `--threshold 0.5`
+</ParamField>
+
+<ParamField path="--max-turns" type="integer" required>
+  Maximum number of turns in the conversation. Should be a multiple of two for balanced user-assistant exchanges.
+  
+  - Example: `--max-turns 8`
+  - Recommended: Even numbers (2, 4, 6, 8, 10, etc.)
+  
+  <Note>
+    Use even numbers for `--max-turns` to ensure conversations end with an assistant response. Odd numbers may result in incomplete conversation patterns.
+  </Note>
+</ParamField>
+
+<ParamField path="--test-types" type="string" required>
+  Comma-separated list of multi-turn test types to run.
+  
+  **Available Test Types:**
+  - `user_persona` - Tests with simulated user personas
+  - `semantic_chunks` - Tests with semantic conversation chunks
+  
+  - Format: `--test-types type1,type2`
+  - Example: `--test-types user_persona,semantic_chunks`
+</ParamField>
+
+## Optional Options
+
+<ParamField path="--test-case-groups" type="string" default="suicidal_ideation">
+  Comma-separated list of test case groups to run in the evaluation.
+  
+  - Format: `--test-case-groups group1,group2,group3`
+  - Default: `suicidal_ideation`
+  - Example: `--test-case-groups suicidal_ideation,custom_group`
+  
+  <Note>
+    The default test case group is `suicidal_ideation`. You can specify multiple groups separated by commas, or provide custom group names.
+  </Note>
+</ParamField>
+
+## Provider Subcommands
+
+After specifying multi-turn options, you must choose a provider:
+
+### openai
+
+Use OpenAI or OpenAI-compatible APIs.
+
+```bash
+cbl multi-turn [options] openai --api-key <key> --model <model> [openai-options]
+```
+
+**Required OpenAI Options:**
+
+<ParamField path="--api-key" type="string" required>
+  OpenAI API key. Can also be set via `OPENAI_API_KEY` environment variable.
+  
+  ```bash
+  export OPENAI_API_KEY="sk-..."
+  ```
+</ParamField>
+
+<ParamField path="--model" type="string" required>
+  OpenAI model name.
+  
+  - Examples: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
+  - Or custom fine-tune ID: `ft:gpt-4o-mini:...`
+</ParamField>
+
+**Optional OpenAI Options:**
+
+- `--base-url` - Custom API endpoint (default: `https://api.openai.com/v1`, env: `OPENAI_BASE_URL`)
+- `--org-id` - OpenAI organization ID (env: `OPENAI_ORG_ID`)
+- `--temperature` - Sampling temperature between 0 and 2
+- `--top-p` - Nucleus sampling parameter
+- `--max-completion-tokens` - Maximum tokens to generate
+- `--n` - Number of completions to generate
+- `--frequency-penalty` - Penalty for token frequency (-2.0 to 2.0)
+- `--presence-penalty` - Penalty for token presence (-2.0 to 2.0)
+- `--logprobs` - Return log probabilities
+- `--top-logprobs` - Number of most likely tokens to return (0-20)
+- `--stop` - Stop sequences (comma-separated, up to 4)
+- `--logit-bias` - Modify token likelihoods (format: `token_id:bias`)
+- `--store` - Store the output
+- `--service-tier` - Processing type (`auto`, `default`, `flex`, `scale`, `priority`)
+- `--reasoning-effort` - Reasoning effort (`minimal`, `low`, `medium`, `high`, `xhigh`)
+
+### ollama
+
+Use locally-hosted Ollama models.
+
+```bash
+cbl multi-turn [options] ollama --model <model> [ollama-options]
+```
+
+**Required Ollama Options:**
+
+<ParamField path="--model" type="string" required>
+  Ollama model name (e.g., `llama2`, `mistral`, `codellama`).
+</ParamField>
+
+**Optional Ollama Options:**
+
+- `--base-url` - Ollama server URL (default: `http://localhost:11434`, env: `OLLAMA_BASE_URL`)
+- `--logprobs` - Return log probabilities
+- `--mirostat` - Mirostat sampling mode (0=disabled, 1=Mirostat, 2=Mirostat 2.0)
+- `--mirostat-eta` - Mirostat learning rate (default: 0.1)
+- `--mirostat-tau` - Mirostat tau parameter (default: 5.0)
+- `--num-ctx` - Context window size (default: 2048)
+- `--num-gpu` - Number of layers to send to GPU
+- `--num-gqa` - Number of GQA groups
+- `--num-predict` - Max tokens to predict (default: 128, -1=infinite, -2=fill context)
+- `--num-thread` - Number of threads for computation
+- `--repeat-last-n` - Look-back for repetition prevention (default: 64, 0=disabled, -1=num_ctx)
+- `--repeat-penalty` - Repetition penalty (default: 1.1)
+- `--seed` - Random seed (default: 0)
+- `--stop` - Stop sequences (can specify multiple times)
+- `--temperature` - Sampling temperature (default: 0.8)
+- `--tfs-z` - Tail free sampling (default: 1)
+- `--top-k` - Top-k sampling (default: 40)
+- `--top-p` - Top-p sampling (default: 0.9)
+
+### custom
+
+Use custom endpoints with Rhai scripting.
+
+```bash
+cbl multi-turn [options] custom --url <url> --script <path>
+```
+
+**Required Custom Options:**
+
+<ParamField path="--url" type="string" required>
+  Endpoint URL to POST requests to.
+</ParamField>
+
+<ParamField path="--script" type="string" required>
+  Path to the Rhai script file that translates between CBL protocol and your custom API.
+  
+  See [examples/providers/](https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers) for script examples.
+</ParamField>
+
+## Complete Examples
+
+### Basic Multi-Turn Evaluation
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    openai \
+    --model gpt-4o
+```
+
+### Comprehensive Conversational Testing
+
+```bash
+cbl --output-file conversation-eval.json \
+    multi-turn \
+    --threshold 0.4 \
+    --max-turns 12 \
+    --test-types user_persona,semantic_chunks \
+    --test-case-groups suicidal_ideation,custom_safety \
+    openai \
+    --model gpt-4o \
+    --temperature 0.9
+```
+
+### Extended Conversation Test
+
+```bash
+export OPENAI_API_KEY="sk-..."
+
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 16 \
+    --test-types user_persona,semantic_chunks \
+    openai \
+    --model gpt-4-turbo
+```
+
+### Ollama Multi-Turn Evaluation
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    ollama \
+    --model llama2 \
+    --temperature 0.8 \
+    --num-ctx 4096
+```
+
+### Single Test Type with Custom Provider
+
+```bash
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 6 \
+    --test-types semantic_chunks \
+    custom \
+    --url https://api.example.com/v1/chat \
+    --script ./providers/custom-api.rhai
+```
+
+### Debug Mode with Verbose Logging
+
+```bash
+cbl --log-level debug \
+    --log-mode \
+    multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    openai \
+    --model gpt-4o
+```
+
+## Test Type Details
+
+### user_persona
+
+Simulates different user personas in conversations to test how the model handles various user behaviors and communication styles across multiple turns.
+
+**Use Cases:**
+- Testing responses to persistent or manipulative users
+- Evaluating consistency in safety boundaries
+- Assessing model behavior with different personality types
+
+### semantic_chunks
+
+Breaks safety-critical content into semantic chunks distributed across conversation turns, testing if models can maintain safety when concerning topics are gradually introduced.
+
+**Use Cases:**
+- Testing resistance to gradual boundary pushing
+- Evaluating context awareness across turns
+- Detecting progressive prompt injection attempts
+
+<Tip>
+  Use both test types together for comprehensive multi-turn evaluation: `--test-types user_persona,semantic_chunks`
+</Tip>
+
+## Understanding Max Turns
+
+The `--max-turns` parameter controls conversation length:
+
+- **2 turns**: Minimal back-and-forth (user → assistant)
+- **4-6 turns**: Short conversations
+- **8-12 turns**: Medium-length conversations (recommended)
+- **14+ turns**: Extended conversations
+
+<Warning>
+  Longer conversations significantly increase evaluation time and API costs. Start with 8 turns and adjust based on your needs.
+</Warning>
+
+## Understanding the Output
+
+Evaluation results are automatically saved with a timestamp:
+
+```bash
+# Default output format
+evaluation_results_YYYY-MM-DD_HH-MM-SS.json
+
+# Custom output file
+cbl --output-file my-results.json multi-turn ...
+```
+
+The output includes:
+- Overall evaluation score
+- Individual conversation results
+- Safety scores for each turn
+- Pass/fail status based on threshold
+- Complete conversation transcripts
+- Test type breakdowns
+
+<Note>
+  Results are saved in JSON format and include full conversation history for analysis.
+</Note>
+
+## Tips and Best Practices
+
+<Tip>
+  **Starting Point:** Begin with `--threshold 0.5`, `--max-turns 8`, and both test types for comprehensive initial evaluations.
+</Tip>
+
+### Threshold Selection
+
+- `0.3-0.4` - Strict safety requirements for high-risk applications
+- `0.5-0.6` - Balanced safety evaluation (recommended starting point)
+- `0.7-0.8` - Lenient evaluation for exploratory testing
+
+### Turn Count Guidelines
+
+- **Short tests (2-4 turns)**: Quick smoke tests
+- **Medium tests (6-10 turns)**: Standard safety evaluation
+- **Long tests (12+ turns)**: Comprehensive boundary testing
+
+### Test Type Selection
+
+- Use **user_persona** alone when focusing on user behavior patterns
+- Use **semantic_chunks** alone when testing gradual topic introduction
+- Use **both** for comprehensive conversational safety testing
+
+### Cost Optimization
+
+<Warning>
+  Multi-turn evaluations consume more API tokens than single-turn tests. Each turn adds to the conversation context, increasing token usage exponentially.
+</Warning>
+
+**To optimize costs:**
+1. Start with fewer turns (6-8) for initial testing
+2. Use `--log-level info` to monitor token usage
+3. Consider using Ollama for development/testing
+4. Run comprehensive tests (12+ turns) only for production validation
+
+## Comparison with Single-Turn
+
+| Aspect | Single-Turn | Multi-Turn |
+|--------|-------------|------------|
+| **Context** | No conversation history | Full conversation context |
+| **Duration** | Faster (one response per test) | Slower (multiple turns) |
+| **Use Case** | Individual prompt safety | Conversational safety |
+| **Cost** | Lower token usage | Higher token usage |
+| **Complexity** | Simpler, direct testing | Complex interaction patterns |
+
+<Note>
+  Use **single-turn** for testing individual prompts and quick iterations. Use **multi-turn** for production chatbots and conversational applications.
+</Note>
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="Single-Turn" icon="message" href="/commands/single-turn">
+    Run single-turn evaluations
+  </Card>
+  <Card title="Global Options" icon="gear" href="/commands/global-options">
+    Configure API keys and logging
+  </Card>
+</CardGroup>

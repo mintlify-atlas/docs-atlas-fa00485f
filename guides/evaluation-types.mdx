@@ -1,0 +1,173 @@
+---
+title: 'Evaluation Types'
+description: 'Understanding single-turn vs multi-turn AI safety evaluations'
+---
+
+The Circuit Breaker Labs CLI supports two types of AI safety evaluations, each designed to test different aspects of model behavior and safety alignment.
+
+## Single-Turn vs Multi-Turn
+
+<Tabs>
+  <Tab title="Single-Turn">
+    Single-turn evaluations test how your model responds to individual, isolated prompts. Each test case is independent, and the model has no conversation history to consider.
+
+    **Best for:**
+    - Testing direct prompt injection vulnerabilities
+    - Evaluating immediate safety responses
+    - Quick safety assessments
+    - Testing specific harmful content detection
+  </Tab>
+  <Tab title="Multi-Turn">
+    Multi-turn evaluations simulate realistic conversations where an attacker attempts to manipulate the model over multiple exchanges. The model must maintain safety boundaries throughout an extended dialogue.
+
+    **Best for:**
+    - Testing conversational manipulation resistance
+    - Evaluating consistency of safety boundaries
+    - Simulating real-world attack scenarios
+    - Testing jailbreak resistance
+  </Tab>
+</Tabs>
+
+## Test Case Groups
+
+Both evaluation types support test case groups that categorize the types of unsafe content being tested:
+
+<CodeGroup>
+```bash Default Group
+# Tests suicidal ideation prompts (default)
+cbl single-turn \
+    --test-case-groups suicidal_ideation \
+    openai --model gpt-4o
+```
+
+```bash Custom Groups
+# Test multiple groups including custom categories
+cbl single-turn \
+    --test-case-groups suicidal_ideation,violence,custom_category \
+    openai --model gpt-4o
+```
+</CodeGroup>
+
+### Available Test Case Groups
+
+<AccordionGroup>
+  <Accordion title="suicidal_ideation (Built-in)">
+    Tests the model's ability to handle sensitive mental health topics safely. This group includes prompts that attempt to elicit harmful advice or normalize self-harm.
+
+    **Example prompts tested:**
+    - Direct requests for harmful information
+    - Indirect manipulation attempts
+    - Context-shifting scenarios
+  </Accordion>
+
+  <Accordion title="Custom Groups">
+    You can specify custom test case groups that you've created in your Circuit Breaker Labs account. Custom groups allow you to test domain-specific safety requirements.
+
+    **Use cases:**
+    - Industry-specific compliance testing
+    - Brand safety alignment
+    - Custom policy enforcement
+    - Domain-specific harmful content
+  </Accordion>
+</AccordionGroup>
+
+## Safety Thresholds
+
+Both evaluation types use a `threshold` parameter to determine pass/fail criteria:
+
+<Note>
+  The threshold is a float value between 0.0 and 1.0, representing the minimum safety score required for a response to pass. Responses scoring below this threshold are flagged as unsafe.
+</Note>
+
+```bash
+# Strict threshold (0.8) - fewer responses will pass
+cbl single-turn --threshold 0.8 openai --model gpt-4o
+
+# Moderate threshold (0.5) - balanced approach
+cbl single-turn --threshold 0.5 openai --model gpt-4o
+
+# Lenient threshold (0.3) - most responses will pass
+cbl single-turn --threshold 0.3 openai --model gpt-4o
+```
+
+### Choosing the Right Threshold
+
+<Steps>
+  <Step title="Understand Your Use Case">
+    High-risk applications (healthcare, mental health support, child-facing products) should use stricter thresholds (0.7-0.9).
+  </Step>
+  
+  <Step title="Baseline Your Model">
+    Run evaluations with moderate thresholds (0.5) first to understand your model's current safety performance.
+  </Step>
+  
+  <Step title="Iterate and Refine">
+    Adjust thresholds based on your risk tolerance and the false positive/negative trade-offs you observe in results.
+  </Step>
+</Steps>
+
+## Comparison Table
+
+| Feature | Single-Turn | Multi-Turn |
+|---------|-------------|------------|
+| **Test Duration** | Fast (seconds to minutes) | Slower (minutes to hours) |
+| **Conversation History** | None | Full context maintained |
+| **Attack Complexity** | Simple, direct prompts | Sophisticated, multi-step manipulation |
+| **Parameters** | `threshold`, `variations`, `maximum_iteration_layers` | `threshold`, `max_turns`, `test_types` |
+| **Best For** | Quick safety checks, direct vulnerabilities | Realistic attack simulation, jailbreak testing |
+| **Resource Usage** | Low | Higher (more API calls) |
+
+## Quick Start Examples
+
+<CodeGroup>
+```bash Single-Turn Example
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+
+```bash Multi-Turn Example
+cbl multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    openai --model gpt-4o
+```
+
+```bash Save Results to File
+cbl --output-file results.json \
+    single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+</CodeGroup>
+
+<Warning>
+  Always set the `CBL_API_KEY` and provider-specific API keys (e.g., `OPENAI_API_KEY`) before running evaluations:
+  
+  ```bash
+  export CBL_API_KEY="your_cbl_api_key"
+  export OPENAI_API_KEY="your_openai_api_key"
+  ```
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Single-Turn Evaluations" icon="bolt" href="/guides/single-turn-evaluations">
+    Deep dive into single-turn evaluation parameters and usage
+  </Card>
+  <Card title="Multi-Turn Evaluations" icon="messages" href="/guides/multi-turn-evaluations">
+    Learn about conversational safety testing
+  </Card>
+  <Card title="Providers" icon="plug" href="/guides/providers">
+    Configure OpenAI, Ollama, or custom model providers
+  </Card>
+  <Card title="Custom Providers" icon="code" href="/guides/custom-providers">
+    Create custom providers with Rhai scripting
+  </Card>
+</CardGroup>

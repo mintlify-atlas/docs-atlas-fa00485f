@@ -1,0 +1,143 @@
+---
+title: Introduction
+description: Circuit Breaker Labs CLI - AI safety evaluation tool for testing language models
+---
+
+Circuit Breaker Labs CLI (`cbl`) is a command-line tool for running comprehensive AI safety evaluations on language models. It helps you test your AI systems against unsafe prompts and adversarial scenarios to ensure they respond safely and appropriately.
+
+## What is Circuit Breaker Labs CLI?
+
+The `cbl` tool enables you to evaluate how well your language models handle potentially harmful or unsafe inputs. It works by:
+
+- Sending test cases to your model through supported providers (OpenAI, Ollama, or custom endpoints)
+- Evaluating responses against safety thresholds
+- Generating detailed reports of model behavior under adversarial conditions
+- Supporting both single-turn and multi-turn conversation testing
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Single-Turn Evaluations" icon="message">
+    Test individual model responses to unsafe prompts with multiple variations and iteration layers
+  </Card>
+  
+  <Card title="Multi-Turn Evaluations" icon="messages">
+    Test conversational scenarios with user personas and semantic chunks across multiple dialogue turns
+  </Card>
+  
+  <Card title="Multiple Providers" icon="plug">
+    Support for OpenAI, Ollama, and custom model endpoints via Rhai scripting
+  </Card>
+  
+  <Card title="Real-Time Monitoring" icon="chart-line">
+    Interactive TUI (terminal user interface) shows evaluation progress in real-time
+  </Card>
+</CardGroup>
+
+## Evaluation Types
+
+### Single-Turn Evaluations
+
+Single-turn evaluations test how your model responds to individual unsafe prompts. You can control:
+
+- **Threshold**: Safety score threshold (responses below this fail)
+- **Variations**: Number of prompt variations per test case
+- **Maximum Iteration Layers**: Depth of adversarial prompt refinement
+- **Test Case Groups**: Categories of unsafe content to test (e.g., `suicidal_ideation`)
+
+### Multi-Turn Evaluations
+
+Multi-turn evaluations test conversational safety across multiple dialogue turns. Features include:
+
+- **Max Turns**: Number of conversation turns (should be even)
+- **Test Types**: `user_persona` and `semantic_chunks` testing approaches
+- **Threshold**: Safety score threshold for conversation responses
+- **Test Case Groups**: Categories of unsafe scenarios to test
+
+## Use Cases
+
+<Steps>
+  <Step title="Pre-deployment Safety Testing">
+    Evaluate your model's safety characteristics before production deployment to identify potential risks
+  </Step>
+  
+  <Step title="Fine-tune Validation">
+    Test custom fine-tunes and ensure safety guardrails remain intact after training
+  </Step>
+  
+  <Step title="Continuous Monitoring">
+    Run regular safety evaluations as part of your CI/CD pipeline to catch regressions
+  </Step>
+  
+  <Step title="Comparative Analysis">
+    Compare safety performance across different models, providers, or configurations
+  </Step>
+</Steps>
+
+## How It Works
+
+The Circuit Breaker Labs CLI connects to the Circuit Breaker Labs API, which generates adversarial test cases. Your CLI acts as a bridge:
+
+1. **Request Evaluation**: You specify the evaluation type, parameters, and model provider
+2. **Receive Test Cases**: The CBL API sends test prompts via WebSocket
+3. **Query Your Model**: The CLI forwards prompts to your specified model provider
+4. **Return Responses**: Model responses are sent back to the CBL API for safety scoring
+5. **Generate Report**: Receive a detailed JSON report with safety scores and analysis
+
+<Note>
+  All model inference happens through your own API keys and infrastructure. Circuit Breaker Labs only sees the prompts and responses for safety evaluation purposes.
+</Note>
+
+## Supported Providers
+
+### OpenAI
+Test any OpenAI model including GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, and custom fine-tunes. Full support for OpenAI API parameters like temperature, top_p, max_completion_tokens, and more.
+
+### Ollama
+Evaluate locally-hosted models through Ollama with full control over model parameters like temperature, context window size, and sampling settings.
+
+### Custom Endpoints
+Integrate any model API using Rhai scripting to define custom request/response transformations. Perfect for proprietary models or non-standard APIs.
+
+## Getting Started
+
+Ready to start testing your models for safety? Follow our guides:
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the CLI on Linux, macOS, or Windows
+  </Card>
+  
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first evaluation in minutes
+  </Card>
+</CardGroup>
+
+## Command Syntax
+
+The general syntax for `cbl` follows this pattern:
+
+```bash
+cbl [GLOBAL_OPTIONS] <EVALUATION_TYPE> [EVAL_OPTIONS] <PROVIDER> [PROVIDER_OPTIONS]
+```
+
+Where:
+- `GLOBAL_OPTIONS`: CLI-level flags like `--output-file`, `--log-mode`
+- `EVALUATION_TYPE`: Either `single-turn` or `multi-turn`
+- `EVAL_OPTIONS`: Evaluation-specific parameters like `--threshold`, `--variations`
+- `PROVIDER`: One of `openai`, `ollama`, or `custom`
+- `PROVIDER_OPTIONS`: Provider-specific settings like `--model`, `--temperature`
+
+<Warning>
+  Circuit Breaker Labs CLI requires API access. Contact [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai?subject=Getting%20Set%20Up&body=I%27m%20interested%20in%20using%20Circuit%20Breaker%20Labs%27%20CLI%20tool.) to get your API key.
+</Warning>
+
+## Next Steps
+
+- [Install the CLI](/installation) on your system
+- Follow the [Quickstart Guide](/quickstart) to run your first evaluation
+- Learn about [command-line options](https://github.com/circuitbreakerlabs/cli) in the GitHub repository
+
+---
+
+**Questions?** Reach out to [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai)

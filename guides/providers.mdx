@@ -1,0 +1,518 @@
+---
+title: 'Model Providers'
+description: 'Overview of supported model providers and how to configure them'
+---
+
+The Circuit Breaker Labs CLI supports multiple model providers, allowing you to test any AI model through OpenAI's API, local Ollama models, or custom endpoints.
+
+## Available Providers
+
+The CLI supports three provider types:
+
+<CardGroup cols={3}>
+  <Card title="OpenAI" icon="openai" href="#openai-provider">
+    OpenAI API and compatible endpoints
+  </Card>
+  <Card title="Ollama" icon="server" href="#ollama-provider">
+    Local models via Ollama
+  </Card>
+  <Card title="Custom" icon="code" href="#custom-provider">
+    Any API via Rhai scripting
+  </Card>
+</CardGroup>
+
+## Command Structure
+
+Providers are specified as subcommands after the evaluation type:
+
+```bash
+cbl [top-level-args] <evaluation-type> [evaluation-args] <provider> [provider-args]
+```
+
+<Accordion title="Example Breakdown">
+  ```bash
+  cbl --output-file result.json \
+      single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 \
+      openai --model gpt-4o --temperature 1.0
+  ```
+  
+  - `--output-file result.json`: Top-level CLI argument
+  - `single-turn`: Evaluation type
+  - `--threshold 0.5 ...`: Evaluation arguments
+  - `openai`: Provider type
+  - `--model gpt-4o --temperature 1.0`: Provider-specific arguments
+</Accordion>
+
+## OpenAI Provider
+
+The `openai` provider supports OpenAI's API and any OpenAI-compatible endpoints.
+
+### Basic Usage
+
+<CodeGroup>
+```bash Standard OpenAI
+export OPENAI_API_KEY="your-api-key"
+
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model gpt-4o
+```
+
+```bash With Custom Parameters
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o \
+    --temperature 1.2 \
+    --max-completion-tokens 1000
+```
+
+```bash OpenAI-Compatible Endpoint
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_BASE_URL="https://api.your-provider.com/v1"
+
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai --model your-model-name
+```
+</CodeGroup>
+
+### Required Arguments
+
+<ParamField path="model" type="string" required>
+  OpenAI model name (e.g., `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`) or custom fine-tune ID
+</ParamField>
+
+<ParamField path="api-key" type="string" required>
+  OpenAI API key. Can be provided via `--api-key` flag or `OPENAI_API_KEY` environment variable (recommended)
+</ParamField>
+
+### Optional Arguments
+
+<AccordionGroup>
+  <Accordion title="Connection Settings">
+    <ParamField path="base-url" type="string" default="https://api.openai.com/v1">
+      OpenAI API base URL for compatible endpoints. Set via `--base-url` or `OPENAI_BASE_URL` environment variable.
+    </ParamField>
+    
+    <ParamField path="org-id" type="string">
+      OpenAI organization ID. Set via `--org-id` or `OPENAI_ORG_ID` environment variable.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Sampling Parameters">
+    <ParamField path="temperature" type="float" default="1.0">
+      Sampling temperature between 0 and 2. Higher values make output more random.
+    </ParamField>
+    
+    <ParamField path="top-p" type="float" default="1.0">
+      Nucleus sampling parameter. Alternative to temperature.
+    </ParamField>
+    
+    <ParamField path="frequency-penalty" type="float" default="0">
+      Number between -2.0 and 2.0. Penalizes tokens based on frequency in the text so far.
+    </ParamField>
+    
+    <ParamField path="presence-penalty" type="float" default="0">
+      Number between -2.0 and 2.0. Penalizes tokens based on whether they appear in the text so far.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Output Control">
+    <ParamField path="max-completion-tokens" type="integer">
+      Maximum number of tokens to generate in the completion.
+    </ParamField>
+    
+    <ParamField path="stop" type="string[]">
+      Up to 4 sequences where the API will stop generating. Comma-separated: `--stop "\n,END,STOP"`
+    </ParamField>
+    
+    <ParamField path="n" type="integer" default="1">
+      Number of completions to generate per prompt.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Advanced Options">
+    <ParamField path="logprobs" type="boolean">
+      Whether to return log probabilities of output tokens.
+    </ParamField>
+    
+    <ParamField path="top-logprobs" type="integer">
+      Integer between 0 and 20 specifying number of most likely tokens to return at each position.
+    </ParamField>
+    
+    <ParamField path="logit-bias" type="map">
+      Modify likelihood of specified tokens. Format: `--logit-bias "token_id:bias,token_id:bias"`
+    </ParamField>
+    
+    <ParamField path="service-tier" type="enum">
+      Processing tier: `auto`, `default`, `flex`, `scale`, or `priority`
+    </ParamField>
+    
+    <ParamField path="reasoning-effort" type="enum">
+      Effort for reasoning models: `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+### Example: Testing a Fine-Tune
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+export MY_FINETUNE_ID="ft:gpt-4o-2024-08-06:your-org:your-model:id"
+
+cbl --output-file finetune-results.json \
+    single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model $MY_FINETUNE_ID \
+    --temperature 1.2
+```
+
+## Ollama Provider
+
+The `ollama` provider connects to local Ollama models running on your machine or a remote Ollama server.
+
+### Basic Usage
+
+<Steps>
+  <Step title="Install and Start Ollama">
+    Download from [ollama.ai](https://ollama.ai) and pull a model:
+    ```bash
+    ollama pull llama3.2
+    ```
+  </Step>
+  
+  <Step title="Run Evaluation">
+    ```bash
+    cbl single-turn \
+        --threshold 0.5 \
+        --variations 2 \
+        --maximum-iteration-layers 2 \
+        ollama --model llama3.2
+    ```
+  </Step>
+</Steps>
+
+<CodeGroup>
+```bash Local Ollama (Default)
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama --model llama3.2
+```
+
+```bash Remote Ollama Server
+export OLLAMA_BASE_URL="http://your-server:11434"
+
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama --model llama3.2
+```
+
+```bash With Custom Parameters
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama \
+    --model llama3.2 \
+    --temperature 0.9 \
+    --num-predict 500
+```
+</CodeGroup>
+
+### Required Arguments
+
+<ParamField path="model" type="string" required>
+  Ollama model name (e.g., `llama3.2`, `mistral`, `phi3`)
+</ParamField>
+
+### Optional Arguments
+
+<AccordionGroup>
+  <Accordion title="Connection Settings">
+    <ParamField path="base-url" type="string" default="http://localhost:11434">
+      Ollama server URL. Set via `--base-url` or `OLLAMA_BASE_URL` environment variable.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Sampling Parameters">
+    <ParamField path="temperature" type="float" default="0.8">
+      Model temperature - higher values make answers more creative.
+    </ParamField>
+    
+    <ParamField path="top-k" type="integer" default="40">
+      Reduces probability of generating nonsense. Higher = more diverse.
+    </ParamField>
+    
+    <ParamField path="top-p" type="float" default="0.9">
+      Works with top-k. Higher values lead to more diverse text.
+    </ParamField>
+    
+    <ParamField path="repeat-penalty" type="float" default="1.1">
+      How strongly to penalize repetitions.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Generation Control">
+    <ParamField path="num-predict" type="integer" default="128">
+      Maximum tokens to predict. Use -1 for infinite, -2 to fill context.
+    </ParamField>
+    
+    <ParamField path="stop" type="string[]">
+      Stop sequences. Can be specified multiple times.
+    </ParamField>
+    
+    <ParamField path="seed" type="integer" default="0">
+      Random number seed for reproducible generation.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Performance Tuning">
+    <ParamField path="num-ctx" type="integer" default="2048">
+      Size of the context window.
+    </ParamField>
+    
+    <ParamField path="num-gpu" type="integer">
+      Number of layers to send to GPU(s).
+    </ParamField>
+    
+    <ParamField path="num-thread" type="integer">
+      Number of threads to use during computation.
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Advanced Sampling">
+    <ParamField path="mirostat" type="integer" default="0">
+      Enable Mirostat sampling: 0=disabled, 1=Mirostat, 2=Mirostat 2.0
+    </ParamField>
+    
+    <ParamField path="mirostat-eta" type="float" default="0.1">
+      Mirostat learning rate.
+    </ParamField>
+    
+    <ParamField path="mirostat-tau" type="float" default="5.0">
+      Mirostat tau - controls balance between coherence and diversity.
+    </ParamField>
+    
+    <ParamField path="tfs-z" type="float" default="1">
+      Tail free sampling - reduces impact of less probable tokens.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+## Custom Provider
+
+The `custom` provider allows you to integrate any API using Rhai scripting. This is perfect for:
+
+- Proprietary model APIs
+- Custom inference endpoints
+- Non-OpenAI-compatible services
+- Internal model deployments
+
+<Note>
+  For detailed information on creating custom providers, see the [Custom Providers guide](/guides/custom-providers).
+</Note>
+
+### Basic Usage
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://your-api.com/completions \
+    --script ./providers/your-provider.rhai
+```
+
+### Required Arguments
+
+<ParamField path="url" type="string" required>
+  The endpoint URL to POST requests to
+</ParamField>
+
+<ParamField path="script" type="path" required>
+  Path to the Rhai script file that translates requests/responses
+</ParamField>
+
+### Authentication
+
+Custom providers support authentication via request headers:
+
+<CodeGroup>
+```bash Bearer Token
+export CUSTOM_API_KEY="your-api-key"
+
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://your-api.com/completions \
+    --script ./provider.rhai
+```
+
+```bash Multiple Headers
+export CUSTOM_API_KEY="your-api-key"
+export CUSTOM_ORG_ID="your-org-id"
+
+# Headers are automatically passed from environment
+# Configure in your Rhai script if needed
+```
+</CodeGroup>
+
+<Info>
+  See the [Custom Providers guide](/guides/custom-providers) for complete examples with authentication and complex request schemas.
+</Info>
+
+## Provider Comparison
+
+| Feature | OpenAI | Ollama | Custom |
+|---------|--------|--------|--------|
+| **Setup Difficulty** | Easy | Medium | Advanced |
+| **Cost** | Pay per token | Free (local compute) | Varies |
+| **Latency** | Low (cloud) | Very low (local) | Varies |
+| **Model Selection** | OpenAI models + fine-tunes | Open-source models | Any model |
+| **Configuration** | Built-in parameters | Built-in parameters | Script-based |
+| **Best For** | Production testing, OpenAI models | Local development, open-source models | Custom APIs, proprietary models |
+| **Authentication** | API key | None (local) | Custom via headers |
+| **Offline Usage** | No | Yes | Depends |
+
+## Environment Variables
+
+<AccordionGroup>
+  <Accordion title="Circuit Breaker Labs">
+    <ParamField path="CBL_API_KEY" type="string" required>
+      Your Circuit Breaker Labs API key. Required for all evaluations.
+      ```bash
+      export CBL_API_KEY="your-cbl-api-key"
+      ```
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="OpenAI Provider">
+    <ParamField path="OPENAI_API_KEY" type="string" required>
+      OpenAI API key
+    </ParamField>
+    
+    <ParamField path="OPENAI_BASE_URL" type="string">
+      Custom base URL for OpenAI-compatible endpoints
+    </ParamField>
+    
+    <ParamField path="OPENAI_ORG_ID" type="string">
+      OpenAI organization ID
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Ollama Provider">
+    <ParamField path="OLLAMA_BASE_URL" type="string" default="http://localhost:11434">
+      Ollama server URL
+    </ParamField>
+  </Accordion>
+
+  <Accordion title="Custom Provider">
+    Custom providers can read any environment variables your Rhai script accesses. Common patterns:
+    
+    ```bash
+    export CUSTOM_API_KEY="your-key"
+    export CUSTOM_API_URL="https://your-api.com"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Scenarios
+
+<AccordionGroup>
+  <Accordion title="Testing Multiple Models">
+    ```bash
+    # Test OpenAI's GPT-4
+    cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 \
+        openai --model gpt-4o
+    
+    # Test local Llama model
+    cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 \
+        ollama --model llama3.2
+    
+    # Compare results to find the safest model for your use case
+    ```
+  </Accordion>
+
+  <Accordion title="CI/CD Integration">
+    ```yaml
+    # GitHub Actions example
+    - name: Run safety evaluation
+      env:
+        CBL_API_KEY: ${{ secrets.CBL_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        cbl --output-file results.json \
+          single-turn --threshold 0.6 --variations 2 --maximum-iteration-layers 2 \
+          openai --model gpt-4o
+    ```
+  </Accordion>
+
+  <Accordion title="Development Workflow">
+    ```bash
+    # 1. Quick local testing with Ollama
+    ollama pull llama3.2
+    cbl single-turn --threshold 0.5 --variations 1 --maximum-iteration-layers 1 \
+        ollama --model llama3.2
+    
+    # 2. Comprehensive testing with OpenAI before deployment
+    cbl single-turn --threshold 0.6 --variations 3 --maximum-iteration-layers 2 \
+        openai --model gpt-4o
+    
+    # 3. Multi-turn testing for production validation
+    cbl multi-turn --threshold 0.6 --max-turns 8 \
+        --test-types user_persona,semantic_chunks \
+        openai --model gpt-4o
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="OpenAI: 'Invalid API Key' Error">
+    - Verify your API key is correct: `echo $OPENAI_API_KEY`
+    - Ensure no extra spaces or quotes in the environment variable
+    - Check that your API key has sufficient credits
+  </Accordion>
+
+  <Accordion title="Ollama: 'Connection Refused' Error">
+    - Verify Ollama is running: `ollama list`
+    - Check the base URL is correct
+    - Ensure the model is pulled: `ollama pull llama3.2`
+  </Accordion>
+
+  <Accordion title="Custom: 'Script Error' Messages">
+    - Verify your Rhai script syntax is correct
+    - Check that `build_request` and `parse_response` functions exist
+    - Test your script with simple inputs first
+    - See [Custom Providers guide](/guides/custom-providers) for debugging tips
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Providers" icon="code" href="/guides/custom-providers">
+    Learn how to create custom providers with Rhai scripting
+  </Card>
+  <Card title="Single-Turn Evaluations" icon="bolt" href="/guides/single-turn-evaluations">
+    Configure and run single-turn safety tests
+  </Card>
+</CardGroup>

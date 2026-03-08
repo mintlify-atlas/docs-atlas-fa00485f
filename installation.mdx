@@ -1,0 +1,306 @@
+---
+title: Installation
+description: Install Circuit Breaker Labs CLI on Linux, macOS, and Windows
+---
+
+Circuit Breaker Labs CLI is distributed as pre-built binaries for all major platforms. This guide will help you install `cbl` and get it configured with the necessary API keys.
+
+## Prerequisites
+
+Before installing, you'll need:
+
+1. **Circuit Breaker Labs API Key** - Required to run evaluations
+2. **Model Provider API Key** - Depending on which provider you use:
+   - OpenAI API key for OpenAI models
+   - Ollama installed locally for Ollama models
+   - Custom endpoint credentials for custom providers
+
+<Warning>
+  Circuit Breaker Labs CLI requires API access. If you don't have an API key yet, contact [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai?subject=Getting%20Set%20Up&body=I%27m%20interested%20in%20using%20Circuit%20Breaker%20Labs%27%20CLI%20tool.) to get access.
+</Warning>
+
+## Installation Methods
+
+### Pre-built Binaries (Recommended)
+
+Pre-built executables for Linux, macOS, and Windows are available with each release. Visit the [releases page](https://github.com/circuitbreakerlabs/cli/releases) to download the latest version.
+
+<Steps>
+  <Step title="Download the Binary">
+    Go to the [Circuit Breaker Labs CLI releases page](https://github.com/circuitbreakerlabs/cli/releases) and download the appropriate binary for your platform:
+    
+    - **Linux**: `cbl-linux-x86_64.tar.gz`
+    - **macOS (Intel)**: `cbl-macos-x86_64.tar.gz`
+    - **macOS (Apple Silicon)**: `cbl-macos-aarch64.tar.gz`
+    - **Windows**: `cbl-windows-x86_64.zip`
+  </Step>
+  
+  <Step title="Extract and Install">
+    <CodeGroup>
+    ```bash Linux/macOS
+    # Extract the archive
+    tar -xzf cbl-*.tar.gz
+    
+    # Move to a directory in your PATH
+    sudo mv cbl /usr/local/bin/
+    
+    # Make it executable (if needed)
+    chmod +x /usr/local/bin/cbl
+    ```
+    
+    ```powershell Windows
+    # Extract the ZIP file
+    Expand-Archive cbl-windows-x86_64.zip
+    
+    # Move to a directory in your PATH
+    Move-Item cbl.exe C:\Windows\System32\
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Verify Installation">
+    Confirm that `cbl` is installed correctly:
+    
+    ```bash
+    cbl help
+    ```
+    
+    You should see the Circuit Breaker Labs CLI help output with available commands and options.
+  </Step>
+</Steps>
+
+### Shell-Specific Installation (Linux/macOS)
+
+The releases page also provides shell-specific installation commands for quick setup:
+
+<CodeGroup>
+```bash Bash
+# Copy the bash installation command from the releases page
+curl -fsSL https://github.com/circuitbreakerlabs/cli/releases/download/v0.1.3/install.sh | bash
+```
+
+```zsh Zsh
+# Copy the zsh installation command from the releases page
+curl -fsSL https://github.com/circuitbreakerlabs/cli/releases/download/v0.1.3/install.sh | zsh
+```
+
+```fish Fish
+# Copy the fish installation command from the releases page
+curl -fsSL https://github.com/circuitbreakerlabs/cli/releases/download/v0.1.3/install.sh | fish
+```
+</CodeGroup>
+
+<Note>
+  The installation scripts automatically detect your platform and download the correct binary.
+</Note>
+
+## Configuration
+
+### Setting Up API Keys
+
+Circuit Breaker Labs CLI requires environment variables for authentication. Set these in your shell profile:
+
+<Steps>
+  <Step title="Circuit Breaker Labs API Key">
+    Export your Circuit Breaker Labs API key:
+    
+    ```bash
+    export CBL_API_KEY="your_circuit_breaker_labs_api_key_here"
+    ```
+    
+    <Note>
+      You can also pass this as a command-line argument: `--cbl-api-key YOUR_KEY`
+    </Note>
+  </Step>
+  
+  <Step title="Provider API Keys">
+    Set the appropriate API key for your model provider:
+    
+    <CodeGroup>
+    ```bash OpenAI
+    export OPENAI_API_KEY="your_openai_api_key_here"
+    ```
+    
+    ```bash Ollama
+    # Ollama runs locally by default on http://localhost:11434
+    # No API key needed if using default configuration
+    
+    # If using a custom Ollama instance:
+    export OLLAMA_BASE_URL="http://your-ollama-host:11434"
+    ```
+    
+    ```bash Custom Provider
+    # Custom providers use script-based authentication
+    # Set any required environment variables for your endpoint
+    export CUSTOM_API_KEY="your_custom_api_key"
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Make Environment Variables Persistent">
+    Add the export commands to your shell profile so they persist across sessions:
+    
+    ```bash
+    # For bash: add to ~/.bashrc or ~/.bash_profile
+    echo 'export CBL_API_KEY="your_key_here"' >> ~/.bashrc
+    echo 'export OPENAI_API_KEY="your_key_here"' >> ~/.bashrc
+    
+    # For zsh: add to ~/.zshrc
+    echo 'export CBL_API_KEY="your_key_here"' >> ~/.zshrc
+    echo 'export OPENAI_API_KEY="your_key_here"' >> ~/.zshrc
+    
+    # For fish: use set -Ux
+    set -Ux CBL_API_KEY "your_key_here"
+    set -Ux OPENAI_API_KEY "your_key_here"
+    ```
+    
+    <Warning>
+      Never commit API keys to version control. Use environment variables or secret management tools.
+    </Warning>
+  </Step>
+</Steps>
+
+### Optional Configuration
+
+You can customize the Circuit Breaker Labs API endpoint if needed:
+
+```bash
+export CBL_API_BASE_URL="https://api.circuitbreakerlabs.ai/v1"
+```
+
+<Note>
+  Most users don't need to set `CBL_API_BASE_URL` - the default value works for standard installations.
+</Note>
+
+## Verification
+
+Verify your installation and configuration:
+
+<Steps>
+  <Step title="Check CLI Version">
+    ```bash
+    cbl --version
+    ```
+    
+    Should output: `circuit-breaker-labs 0.1.3` (or current version)
+  </Step>
+  
+  <Step title="View Available Commands">
+    ```bash
+    cbl help
+    ```
+    
+    You should see:
+    - Available evaluation types: `single-turn`, `multi-turn`
+    - Global options: `--cbl-api-key`, `--output-file`, `--log-mode`
+    - Usage examples
+  </Step>
+  
+  <Step title="Check Provider Options">
+    ```bash
+    # Check OpenAI provider options
+    cbl single-turn openai --help
+    
+    # Check Ollama provider options
+    cbl single-turn ollama --help
+    
+    # Check custom provider options
+    cbl single-turn custom --help
+    ```
+  </Step>
+</Steps>
+
+## Platform-Specific Notes
+
+### Linux
+
+- Ensure the binary has execute permissions: `chmod +x cbl`
+- Add to PATH by placing in `/usr/local/bin` or `~/.local/bin`
+- Tested on Ubuntu 20.04+, Debian 11+, Fedora 35+, and Arch Linux
+
+### macOS
+
+- **Apple Silicon (M1/M2/M3)**: Use the `aarch64` binary
+- **Intel Macs**: Use the `x86_64` binary
+- You may need to allow the binary in System Preferences → Security & Privacy if you see a security warning
+- Alternatively, remove the quarantine attribute: `xattr -d com.apple.quarantine /usr/local/bin/cbl`
+
+### Windows
+
+- Extract the ZIP file to a permanent location (e.g., `C:\Program Files\cbl\`)
+- Add the directory to your PATH environment variable
+- Run from PowerShell, Command Prompt, or Windows Terminal
+- Git Bash and WSL are also supported
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Command not found: cbl">
+    The `cbl` binary is not in your PATH. Either:
+    
+    1. Move it to a directory in your PATH: `sudo mv cbl /usr/local/bin/`
+    2. Add the directory containing `cbl` to your PATH
+    3. Run it with the full path: `/path/to/cbl`
+  </Accordion>
+  
+  <Accordion title="Permission denied when running cbl">
+    The binary doesn't have execute permissions. Fix with:
+    
+    ```bash
+    chmod +x /path/to/cbl
+    ```
+  </Accordion>
+  
+  <Accordion title="CBL_API_KEY environment variable not set">
+    You need to export your Circuit Breaker Labs API key:
+    
+    ```bash
+    export CBL_API_KEY="your_key_here"
+    ```
+    
+    Or pass it as a flag: `cbl --cbl-api-key YOUR_KEY ...`
+  </Accordion>
+  
+  <Accordion title="macOS security warning: 'cbl cannot be opened'">
+    macOS Gatekeeper is blocking the binary. Options:
+    
+    1. Go to System Preferences → Security & Privacy and click "Open Anyway"
+    2. Remove the quarantine attribute: `xattr -d com.apple.quarantine /usr/local/bin/cbl`
+  </Accordion>
+  
+  <Accordion title="OPENAI_API_KEY not set when using OpenAI provider">
+    Export your OpenAI API key:
+    
+    ```bash
+    export OPENAI_API_KEY="sk-..."
+    ```
+    
+    Or pass it directly: `cbl single-turn openai --api-key sk-... --model gpt-4`
+  </Accordion>
+</AccordionGroup>
+
+## Getting API Access
+
+To get your Circuit Breaker Labs API key:
+
+<Card title="Request API Access" icon="envelope" href="mailto:team@circuitbreakerlabs.ai?subject=Getting%20Set%20Up&body=I%27m%20interested%20in%20using%20Circuit%20Breaker%20Labs%27%20CLI%20tool.">
+  Click here to email the Circuit Breaker Labs team and request API access. Include information about your use case and the models you plan to evaluate.
+</Card>
+
+## Next Steps
+
+Now that you have `cbl` installed and configured:
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Run your first evaluation in minutes
+  </Card>
+  
+  <Card title="View on GitHub" icon="github" href="https://github.com/circuitbreakerlabs/cli">
+    Explore the source code and examples
+  </Card>
+</CardGroup>
+
+---
+
+**Need help?** Contact [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai)

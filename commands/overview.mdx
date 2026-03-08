@@ -1,0 +1,158 @@
+---
+title: 'CLI Commands Overview'
+description: 'Complete overview of Circuit Breaker Labs CLI command structure and usage'
+---
+
+## Command Structure
+
+The Circuit Breaker Labs CLI follows a hierarchical command structure:
+
+```bash
+cbl [global-options] <command> [command-options] <provider> [provider-options]
+```
+
+### Components
+
+1. **Global Options** - Apply to all commands (API keys, logging, output)
+2. **Command** - Evaluation type (`single-turn` or `multi-turn`)
+3. **Command Options** - Specific to the evaluation type
+4. **Provider** - Model provider (`openai`, `ollama`, or `custom`)
+5. **Provider Options** - Configuration for the selected provider
+
+## Available Commands
+
+### single-turn
+
+Runs a single-turn evaluation where the model responds to individual prompts without conversation context.
+
+```bash
+cbl single-turn --threshold 0.5 --variations 2 --maximum-iteration-layers 2 openai --model gpt-4o
+```
+
+[View complete single-turn documentation →](/commands/single-turn)
+
+### multi-turn
+
+Runs a multi-turn conversational evaluation that tests the model across multiple conversation turns.
+
+```bash
+cbl multi-turn --threshold 0.5 --max-turns 8 --test-types user_persona,semantic_chunks openai --model gpt-4o
+```
+
+[View complete multi-turn documentation →](/commands/multi-turn)
+
+## Provider Subcommands
+
+All evaluation commands require a provider subcommand:
+
+### openai
+
+Use OpenAI or OpenAI-compatible APIs.
+
+**Required:**
+- `--api-key` - OpenAI API key (or set `OPENAI_API_KEY` env var)
+- `--model` - Model name (e.g., `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`)
+
+**Optional:**
+- `--base-url` - Custom API endpoint
+- `--temperature` - Sampling temperature (0-2)
+- `--top-p` - Nucleus sampling
+- And many more options...
+
+### ollama
+
+Use locally-hosted Ollama models.
+
+**Required:**
+- `--model` - Ollama model name
+
+**Optional:**
+- `--base-url` - Ollama server URL (default: `http://localhost:11434`)
+- `--temperature` - Sampling temperature
+- `--num-ctx` - Context window size
+- And many more options...
+
+### custom
+
+Use custom endpoints with Rhai scripting for request/response translation.
+
+**Required:**
+- `--url` - Endpoint URL to POST to
+- `--script` - Path to Rhai script file
+
+See [examples/providers/](https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers) for script examples.
+
+## Complete Examples
+
+### Single-Turn with OpenAI
+
+```bash
+cbl --output-file results.json \
+    single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    --test-case-groups suicidal_ideation \
+    openai \
+    --model gpt-4o \
+    --temperature 1.0
+```
+
+### Multi-Turn with Ollama
+
+```bash
+cbl --log-level debug \
+    multi-turn \
+    --threshold 0.5 \
+    --max-turns 8 \
+    --test-types user_persona,semantic_chunks \
+    ollama \
+    --model llama2 \
+    --temperature 0.8
+```
+
+### Custom Provider
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://api.example.com/v1/chat \
+    --script ./my-provider.rhai
+```
+
+## Getting Help
+
+Get help for any command:
+
+```bash
+# General help
+cbl --help
+
+# Command-specific help
+cbl single-turn --help
+cbl multi-turn --help
+
+# Provider-specific help
+cbl single-turn openai --help
+cbl multi-turn ollama --help
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Global Options" icon="gear" href="/commands/global-options">
+    Configure API keys, logging, and output settings
+  </Card>
+  <Card title="Single-Turn" icon="message" href="/commands/single-turn">
+    Complete single-turn command reference
+  </Card>
+  <Card title="Multi-Turn" icon="messages" href="/commands/multi-turn">
+    Complete multi-turn command reference
+  </Card>
+  <Card title="GitHub Examples" icon="github" href="https://github.com/circuitbreakerlabs/cli/tree/main/examples">
+    View example scripts and configurations
+  </Card>
+</CardGroup>

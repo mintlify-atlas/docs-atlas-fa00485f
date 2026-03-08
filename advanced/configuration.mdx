@@ -1,0 +1,415 @@
+---
+title: Configuration
+description: Configure the Circuit Breaker Labs CLI with environment variables and global options
+---
+
+The Circuit Breaker Labs CLI can be configured through environment variables, command-line flags, and provider-specific options.
+
+## Environment Variables
+
+### Required Variables
+
+#### CBL_API_KEY
+
+Your Circuit Breaker Labs API key for authenticating with the evaluation service.
+
+```bash
+export CBL_API_KEY="cbl_your_api_key_here"
+```
+
+<Note>
+Get your API key by contacting [team@circuitbreakerlabs.ai](mailto:team@circuitbreakerlabs.ai?subject=Getting%20Set%20Up)
+</Note>
+
+### Optional Variables
+
+#### CBL_API_BASE_URL
+
+Custom base URL for the Circuit Breaker Labs API. Defaults to `wss://api.circuitbreakerlabs.ai/v1`.
+
+```bash
+export CBL_API_BASE_URL="wss://custom-endpoint.example.com/v1"
+```
+
+#### OPENAI_API_KEY
+
+Required when using the OpenAI provider.
+
+```bash
+export OPENAI_API_KEY="sk-your_openai_key_here"
+```
+
+#### OPENAI_BASE_URL
+
+Custom base URL for OpenAI-compatible endpoints. Defaults to `https://api.openai.com/v1`.
+
+```bash
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+```
+
+#### OPENAI_ORG_ID
+
+Optional OpenAI organization ID.
+
+```bash
+export OPENAI_ORG_ID="org-your_org_id"
+```
+
+#### OLLAMA_BASE_URL
+
+Base URL for Ollama server. Defaults to `http://localhost:11434`.
+
+```bash
+export OLLAMA_BASE_URL="http://localhost:11434"
+```
+
+## Global Options
+
+These flags can be used with any evaluation command and must be specified before the evaluation type.
+
+### --log-level
+
+Set the logging verbosity level.
+
+```bash
+cbl --log-level debug single-turn ...
+```
+
+**Values:** `error`, `warn`, `info` (default), `debug`, `trace`
+
+### --log-mode
+
+Enable log mode to disable the TUI and output logs to stdout instead. Useful for CI/CD pipelines and debugging.
+
+```bash
+cbl --log-mode single-turn ...
+```
+
+<Warning>
+In log mode, the interactive TUI is disabled. Progress will be logged as text output instead.
+</Warning>
+
+### --output-file
+
+Specify a custom output file path for evaluation results. By default, results are saved to auto-generated files with timestamps:
+
+- Single-turn: `circuit_breaker_labs_single_turn_evaluation_YYYYMMDD_HHMMSS.json`
+- Multi-turn: `circuit_breaker_labs_multi_turn_evaluation_YYYYMMDD_HHMMSS.json`
+
+```bash
+cbl --output-file results/my-evaluation.json single-turn ...
+```
+
+### --add-header
+
+Add custom HTTP headers to provider requests. Can be specified multiple times for multiple headers.
+
+```bash
+cbl --add-header "X-Custom-Header:value1" --add-header "Authorization:Bearer token" single-turn ...
+```
+
+**Format:** `"Key:Value"`
+
+## Provider Configuration
+
+### OpenAI Provider
+
+#### Required Options
+
+```bash
+cbl single-turn openai \
+  --api-key "sk-..." \        # Or use OPENAI_API_KEY env var
+  --model "gpt-4o"
+```
+
+#### Optional Parameters
+
+<Accordion title="Temperature and Sampling">
+
+**--temperature** `<float>`  
+Sampling temperature between 0 and 2. Higher values make output more creative.
+
+```bash
+--temperature 0.7
+```
+
+**--top-p** `<float>`  
+Nucleus sampling parameter. Alternative to temperature.
+
+```bash
+--top-p 0.9
+```
+
+**--frequency-penalty** `<float>`  
+Number between -2.0 and 2.0. Positive values penalize repeated tokens based on frequency.
+
+```bash
+--frequency-penalty 0.5
+```
+
+**--presence-penalty** `<float>`  
+Number between -2.0 and 2.0. Positive values penalize repeated tokens based on presence.
+
+```bash
+--presence-penalty 0.5
+```
+
+</Accordion>
+
+<Accordion title="Token Control">
+
+**--max-completion-tokens** `<integer>`  
+Maximum number of tokens to generate in the completion.
+
+```bash
+--max-completion-tokens 1000
+```
+
+**--stop** `<string,string,...>`  
+Up to 4 sequences where the API will stop generating tokens.
+
+```bash
+--stop "END,STOP"
+```
+
+**--logit-bias** `<token_id:bias,...>`  
+Modify likelihood of specified tokens appearing. Bias values between -100 and 100.
+
+```bash
+--logit-bias "50256:-100,13:5"
+```
+
+</Accordion>
+
+<Accordion title="Advanced Options">
+
+**--n** `<integer>`  
+Number of chat completion choices to generate for each input.
+
+```bash
+--n 3
+```
+
+**--logprobs** `<bool>`  
+Return log probabilities of output tokens.
+
+```bash
+--logprobs true
+```
+
+**--top-logprobs** `<integer>`  
+Number between 0 and 20 specifying most likely tokens to return.
+
+```bash
+--top-logprobs 5
+```
+
+**--service-tier** `<auto|default|flex|scale|priority>`  
+Specifies the processing tier for the request.
+
+```bash
+--service-tier scale
+```
+
+**--reasoning-effort** `<none|minimal|low|medium|high|xhigh>`  
+Constrains effort on reasoning for reasoning models.
+
+```bash
+--reasoning-effort high
+```
+
+**--store** `<bool>`  
+Whether to store the output of this chat completion request.
+
+```bash
+--store true
+```
+
+</Accordion>
+
+### Ollama Provider
+
+#### Required Options
+
+```bash
+cbl single-turn ollama \
+  --model "llama2"
+```
+
+#### Optional Parameters
+
+<Accordion title="Model Options">
+
+**--temperature** `<float>`  
+Model temperature. Higher values = more creative (default: 0.8).
+
+```bash
+--temperature 0.7
+```
+
+**--top-k** `<integer>`  
+Reduces probability of generating nonsense. Higher = more diverse (default: 40).
+
+```bash
+--top-k 50
+```
+
+**--top-p** `<float>`  
+Works with top-k. Higher values = more diverse text (default: 0.9).
+
+```bash
+--top-p 0.95
+```
+
+**--num-predict** `<integer>`  
+Maximum tokens to predict (default: 128, -1 = infinite, -2 = fill context).
+
+```bash
+--num-predict 256
+```
+
+**--num-ctx** `<integer>`  
+Size of the context window (default: 2048).
+
+```bash
+--num-ctx 4096
+```
+
+</Accordion>
+
+<Accordion title="Sampling Control">
+
+**--mirostat** `<0|1|2>`  
+Enable Mirostat sampling (0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0).
+
+```bash
+--mirostat 2
+```
+
+**--mirostat-eta** `<float>`  
+Mirostat learning rate (default: 0.1).
+
+```bash
+--mirostat-eta 0.15
+```
+
+**--mirostat-tau** `<float>`  
+Controls balance between coherence and diversity (default: 5.0).
+
+```bash
+--mirostat-tau 6.0
+```
+
+**--repeat-penalty** `<float>`  
+How strongly to penalize repetitions (default: 1.1).
+
+```bash
+--repeat-penalty 1.2
+```
+
+**--repeat-last-n** `<integer>`  
+How far back to look to prevent repetition (default: 64, 0 = disabled, -1 = num_ctx).
+
+```bash
+--repeat-last-n 128
+```
+
+**--tfs-z** `<float>`  
+Tail free sampling - reduces impact of less probable tokens (default: 1).
+
+```bash
+--tfs-z 0.95
+```
+
+</Accordion>
+
+<Accordion title="Hardware and Performance">
+
+**--num-gpu** `<integer>`  
+Number of layers to send to GPU(s).
+
+```bash
+--num-gpu 32
+```
+
+**--num-thread** `<integer>`  
+Number of threads to use during computation.
+
+```bash
+--num-thread 8
+```
+
+**--num-gqa** `<integer>`  
+Number of GQA groups in transformer layer.
+
+```bash
+--num-gqa 8
+```
+
+</Accordion>
+
+<Accordion title="Other Options">
+
+**--seed** `<integer>`  
+Random number seed for generation (default: 0).
+
+```bash
+--seed 42
+```
+
+**--stop** `<string>`  
+Stop sequences (can be specified multiple times).
+
+```bash
+--stop "END"
+```
+
+**--logprobs** `<bool>`  
+Return log probabilities for each token.
+
+```bash
+--logprobs true
+```
+
+</Accordion>
+
+### Custom Provider
+
+For APIs that aren't OpenAI-compatible, use Rhai scripts to translate between schemas.
+
+```bash
+cbl single-turn custom \
+  --url "https://api.example.com/v1/chat" \
+  --script ./my-provider.rhai
+```
+
+**--url** `<string>` (required)  
+Endpoint URL to POST requests to.
+
+**--script** `<path>` (required)  
+Path to the Rhai script file that handles request/response translation.
+
+<Note>
+See the [examples/providers/](https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers) directory for example Rhai scripts.
+</Note>
+
+## Complete Example
+
+```bash
+export CBL_API_KEY="cbl_your_key"
+export OPENAI_API_KEY="sk-your_key"
+
+cbl \
+  --log-level info \
+  --output-file evaluations/test-run.json \
+  --add-header "X-Request-ID:test-123" \
+  single-turn \
+  --threshold 0.5 \
+  --variations 3 \
+  --maximum-iteration-layers 2 \
+  --test-case-groups suicidal_ideation \
+  openai \
+  --model gpt-4o \
+  --temperature 0.7 \
+  --max-completion-tokens 500
+```

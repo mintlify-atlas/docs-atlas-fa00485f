@@ -1,0 +1,289 @@
+---
+title: 'single-turn Command'
+description: 'Complete reference for the single-turn evaluation command'
+---
+
+## Overview
+
+The `single-turn` command runs evaluations where the model responds to individual prompts without conversational context. Each test case is evaluated independently.
+
+## Command Syntax
+
+```bash
+cbl [global-options] single-turn [options] <provider> [provider-options]
+```
+
+## Required Options
+
+<ParamField path="--threshold" type="float" required>
+  Safety score threshold for evaluation. Responses with scores below this threshold will fail the evaluation.
+  
+  - Range: `0.0` to `1.0`
+  - Example: `--threshold 0.5`
+</ParamField>
+
+<ParamField path="--variations" type="integer" required>
+  Number of variations to generate per unsafe test case. Higher values provide more comprehensive testing but increase evaluation time.
+  
+  - Example: `--variations 2`
+  - Typical range: `1-5`
+</ParamField>
+
+<ParamField path="--maximum-iteration-layers" type="integer" required>
+  Maximum number of iteration layers for tests. Controls the depth of test generation and variation.
+  
+  - Example: `--maximum-iteration-layers 2`
+  - Typical range: `1-3`
+</ParamField>
+
+## Optional Options
+
+<ParamField path="--test-case-groups" type="string" default="suicidal_ideation">
+  Comma-separated list of test case groups to run in the evaluation.
+  
+  - Format: `--test-case-groups group1,group2,group3`
+  - Default: `suicidal_ideation`
+  - Example: `--test-case-groups suicidal_ideation,custom_group`
+  
+  <Note>
+    The default test case group is `suicidal_ideation`. You can specify multiple groups separated by commas, or provide custom group names.
+  </Note>
+</ParamField>
+
+## Provider Subcommands
+
+After specifying single-turn options, you must choose a provider:
+
+### openai
+
+Use OpenAI or OpenAI-compatible APIs.
+
+```bash
+cbl single-turn [options] openai --api-key <key> --model <model> [openai-options]
+```
+
+**Required OpenAI Options:**
+
+<ParamField path="--api-key" type="string" required>
+  OpenAI API key. Can also be set via `OPENAI_API_KEY` environment variable.
+  
+  ```bash
+  export OPENAI_API_KEY="sk-..."
+  ```
+</ParamField>
+
+<ParamField path="--model" type="string" required>
+  OpenAI model name.
+  
+  - Examples: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
+  - Or custom fine-tune ID: `ft:gpt-4o-mini:...`
+</ParamField>
+
+**Optional OpenAI Options:**
+
+- `--base-url` - Custom API endpoint (default: `https://api.openai.com/v1`, env: `OPENAI_BASE_URL`)
+- `--org-id` - OpenAI organization ID (env: `OPENAI_ORG_ID`)
+- `--temperature` - Sampling temperature between 0 and 2
+- `--top-p` - Nucleus sampling parameter
+- `--max-completion-tokens` - Maximum tokens to generate
+- `--n` - Number of completions to generate
+- `--frequency-penalty` - Penalty for token frequency (-2.0 to 2.0)
+- `--presence-penalty` - Penalty for token presence (-2.0 to 2.0)
+- `--logprobs` - Return log probabilities
+- `--top-logprobs` - Number of most likely tokens to return (0-20)
+- `--stop` - Stop sequences (comma-separated, up to 4)
+- `--logit-bias` - Modify token likelihoods (format: `token_id:bias`)
+- `--store` - Store the output
+- `--service-tier` - Processing type (`auto`, `default`, `flex`, `scale`, `priority`)
+- `--reasoning-effort` - Reasoning effort (`minimal`, `low`, `medium`, `high`, `xhigh`)
+
+### ollama
+
+Use locally-hosted Ollama models.
+
+```bash
+cbl single-turn [options] ollama --model <model> [ollama-options]
+```
+
+**Required Ollama Options:**
+
+<ParamField path="--model" type="string" required>
+  Ollama model name (e.g., `llama2`, `mistral`, `codellama`).
+</ParamField>
+
+**Optional Ollama Options:**
+
+- `--base-url` - Ollama server URL (default: `http://localhost:11434`, env: `OLLAMA_BASE_URL`)
+- `--logprobs` - Return log probabilities
+- `--mirostat` - Mirostat sampling mode (0=disabled, 1=Mirostat, 2=Mirostat 2.0)
+- `--mirostat-eta` - Mirostat learning rate (default: 0.1)
+- `--mirostat-tau` - Mirostat tau parameter (default: 5.0)
+- `--num-ctx` - Context window size (default: 2048)
+- `--num-gpu` - Number of layers to send to GPU
+- `--num-gqa` - Number of GQA groups
+- `--num-predict` - Max tokens to predict (default: 128, -1=infinite, -2=fill context)
+- `--num-thread` - Number of threads for computation
+- `--repeat-last-n` - Look-back for repetition prevention (default: 64, 0=disabled, -1=num_ctx)
+- `--repeat-penalty` - Repetition penalty (default: 1.1)
+- `--seed` - Random seed (default: 0)
+- `--stop` - Stop sequences (can specify multiple times)
+- `--temperature` - Sampling temperature (default: 0.8)
+- `--tfs-z` - Tail free sampling (default: 1)
+- `--top-k` - Top-k sampling (default: 40)
+- `--top-p` - Top-p sampling (default: 0.9)
+
+### custom
+
+Use custom endpoints with Rhai scripting.
+
+```bash
+cbl single-turn [options] custom --url <url> --script <path>
+```
+
+**Required Custom Options:**
+
+<ParamField path="--url" type="string" required>
+  Endpoint URL to POST requests to.
+</ParamField>
+
+<ParamField path="--script" type="string" required>
+  Path to the Rhai script file that translates between CBL protocol and your custom API.
+  
+  See [examples/providers/](https://github.com/circuitbreakerlabs/cli/tree/main/examples/providers) for script examples.
+</ParamField>
+
+## Complete Examples
+
+### Basic OpenAI Evaluation
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o
+```
+
+### Comprehensive Evaluation with Custom Output
+
+```bash
+cbl --output-file evaluation-results.json \
+    single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    --test-case-groups suicidal_ideation,custom_safety \
+    openai \
+    --model gpt-4o \
+    --temperature 1.2
+```
+
+### OpenAI Fine-Tune Evaluation
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export MY_FINETUNE_ID="ft:gpt-4o-mini:org:suffix:id"
+
+cbl --output-file result.json \
+    single-turn \
+    --threshold 0.3 \
+    --variations 3 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model $MY_FINETUNE_ID \
+    --temperature 1.2
+```
+
+### Ollama Local Model
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    ollama \
+    --model llama2 \
+    --temperature 0.8 \
+    --num-ctx 4096
+```
+
+### Custom Provider with Script
+
+```bash
+cbl single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    custom \
+    --url https://api.example.com/v1/chat \
+    --script ./providers/custom-api.rhai
+```
+
+### Debug Mode with Log Output
+
+```bash
+cbl --log-level debug \
+    --log-mode \
+    single-turn \
+    --threshold 0.5 \
+    --variations 2 \
+    --maximum-iteration-layers 2 \
+    openai \
+    --model gpt-4o
+```
+
+## Understanding the Output
+
+Evaluation results are automatically saved with a timestamp:
+
+```bash
+# Default output format
+evaluation_results_YYYY-MM-DD_HH-MM-SS.json
+
+# Custom output file
+cbl --output-file my-results.json single-turn ...
+```
+
+The output includes:
+- Overall evaluation score
+- Individual test case results
+- Safety scores for each response
+- Pass/fail status based on threshold
+- Test case variations and iterations
+
+<Note>
+  Results are saved in JSON format and can be analyzed programmatically or viewed in the CLI output.
+</Note>
+
+## Tips and Best Practices
+
+<Tip>
+  **Starting Point:** Begin with `--threshold 0.5`, `--variations 2`, and `--maximum-iteration-layers 2` for initial evaluations. Adjust based on your safety requirements.
+</Tip>
+
+<Warning>
+  Higher values for `--variations` and `--maximum-iteration-layers` significantly increase evaluation time and API costs.
+</Warning>
+
+### Threshold Selection
+
+- `0.3-0.4` - Strict safety requirements
+- `0.5-0.6` - Balanced safety evaluation (recommended starting point)
+- `0.7-0.8` - Lenient evaluation for exploratory testing
+
+### Variations and Iterations
+
+- **Variations**: Controls breadth of testing (more variations = more diverse test cases)
+- **Iteration Layers**: Controls depth of testing (more layers = more refined test generation)
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="Multi-Turn" icon="messages" href="/commands/multi-turn">
+    Run conversational evaluations
+  </Card>
+  <Card title="Global Options" icon="gear" href="/commands/global-options">
+    Configure API keys and logging
+  </Card>
+</CardGroup>
