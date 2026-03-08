@@ -1,0 +1,91 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Circuit Breaker Labs CLI",
+  "projectDescription": "Command-line interface for running AI safety evaluations against language models",
+  "theme": "aspen",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#C4B5FD",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/evaluation-types",
+              "guides/single-turn-evaluations",
+              "guides/multi-turn-evaluations",
+              "guides/providers",
+              "guides/custom-providers"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/configuration",
+              "advanced/output-format",
+              "advanced/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Command Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "commands/overview",
+              "commands/single-turn",
+              "commands/multi-turn",
+              "commands/global-options"
+            ]
+          },
+          {
+            "group": "Providers",
+            "pages": [
+              "providers/openai",
+              "providers/ollama",
+              "providers/custom"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Single-turn and multi-turn AI safety evaluations",
+    "Support for OpenAI, Ollama, and custom model providers",
+    "Interactive TUI with real-time progress indicators",
+    "Custom provider integration via Rhai scripting",
+    "Configurable safety thresholds and test case groups",
+    "JSON output for evaluation results"
+  ],
+  "publicApiSurface": [
+    "cbl single-turn",
+    "cbl multi-turn",
+    "--threshold",
+    "--variations",
+    "--maximum-iteration-layers",
+    "--max-turns",
+    "--test-types",
+    "--test-case-groups",
+    "openai provider",
+    "ollama provider",
+    "custom provider",
+    "--cbl-api-key",
+    "--output-file",
+    "--log-mode",
+    "--add-header"
+  ]
+}
